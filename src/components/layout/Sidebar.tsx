@@ -47,7 +47,7 @@ export function Sidebar() {
       </nav>
 
       <div className="space-y-1 px-3 pb-4">
-        <button className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-blue-100 hover:bg-blue-900/40">
+        <button type="button" className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-blue-100 hover:bg-blue-900/40">
           <LogOut className="h-4 w-4" />
           Sign Out
         </button>
