@@ -19,7 +19,7 @@ function formatDays(days: string[]): string {
 function requirementLabel(reqCode?: string): string | null {
   if (!reqCode) return null;
   const req = requirementTypes.find((r) => r.code === reqCode);
-  return req ? req.description.split(" - ")[0].split("-")[1] ?? req.description : reqCode;
+  return req ? req.code : reqCode;
 }
 
 interface CourseResultCardProps {
@@ -49,10 +49,12 @@ export function CourseResultCard({ section }: CourseResultCardProps) {
         </span>
       </div>
 
-      <div className="mt-1 text-sm text-gray-600">
-        {formatDays(meeting.weekDays)} {meeting.startTime} - {meeting.endTime}
-      </div>
-      {meeting.buildingDescription && (
+      {meeting && (
+        <div className="mt-1 text-sm text-gray-600">
+          {formatDays(meeting.weekDays)} {meeting.startTime} - {meeting.endTime}
+        </div>
+      )}
+      {meeting?.buildingDescription && (
         <div className="text-sm text-gray-500">
           {meeting.buildingDescription} {meeting.room}
         </div>
