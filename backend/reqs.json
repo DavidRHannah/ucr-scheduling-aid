@@ -1,0 +1,475 @@
+
+[
+  {
+    "code": "BBE1",
+    "description": "BU-Composition - 1st Qtr"
+  },
+  {
+    "code": "BBE2",
+    "description": "BU-Composition - 2nd Qtr"
+  },
+  {
+    "code": "BBE3",
+    "description": "BU-Composition - 3rd Qtr"
+  },
+  {
+    "code": "BBEW",
+    "description": "BU-Composition - 3rd Qtr WAC"
+  },
+  {
+    "code": "BBET",
+    "description": "BU-Ethnicity"
+  },
+  {
+    "code": "BBF1",
+    "description": "BU-Foreign Language - BA"
+  },
+  {
+    "code": "BBF2",
+    "description": "BU-Foreign Language - BS"
+  },
+  {
+    "code": "BBAH",
+    "description": "BU-Hum - Addl Humanities"
+  },
+  {
+    "code": "BBFA",
+    "description": "BU-Hum - Fine Arts"
+  },
+  {
+    "code": "BBLT",
+    "description": "BU-Hum - Literature"
+  },
+  {
+    "code": "BBPH",
+    "description": "BU-Hum - Philosophy"
+  },
+  {
+    "code": "BBRS",
+    "description": "BU-Hum - Religious Studies"
+  },
+  {
+    "code": "BBWH",
+    "description": "BU-Hum - World History"
+  },
+  {
+    "code": "BBAN",
+    "description": "BU-Nat Sci - Addl Natural Sci"
+  },
+  {
+    "code": "BBBS",
+    "description": "BU-Nat Sci - Biological Sci"
+  },
+  {
+    "code": "BBMA",
+    "description": "BU-Nat Sci - Math/Stat/CS"
+  },
+  {
+    "code": "BBPS",
+    "description": "BU-Nat Sci - Physical Sci"
+  },
+  {
+    "code": "BBAS",
+    "description": "BU-Soc Sci - Addl Social Sci"
+  },
+  {
+    "code": "BBAT",
+    "description": "BU-Soc Sci - Anth/Psyc/Soc"
+  },
+  {
+    "code": "BBEC",
+    "description": "BU-Soc Sci - Economics/Pol Sci"
+  },
+  {
+    "code": "CENG",
+    "description": "Community-Engaged Learning"
+  },
+  {
+    "code": "BDE1",
+    "description": "ED-Composition - 1st Qtr"
+  },
+  {
+    "code": "BDE2",
+    "description": "ED-Composition - 2nd Qtr"
+  },
+  {
+    "code": "BDE3",
+    "description": "ED-Composition - 3rd Qtr"
+  },
+  {
+    "code": "BDEW",
+    "description": "ED-Composition - 3rd Qtr WAC"
+  },
+  {
+    "code": "BDET",
+    "description": "ED-Ethnicity"
+  },
+  {
+    "code": "BDF1",
+    "description": "ED-Foreign Language - BA"
+  },
+  {
+    "code": "BDF2",
+    "description": "ED-Foreign Language - BS"
+  },
+  {
+    "code": "BDAH",
+    "description": "ED-Hum - Addl Humanities"
+  },
+  {
+    "code": "BDFA",
+    "description": "ED-Hum - Fine Arts"
+  },
+  {
+    "code": "BDLT",
+    "description": "ED-Hum - Literature"
+  },
+  {
+    "code": "BDPH",
+    "description": "ED-Hum - Philosophy"
+  },
+  {
+    "code": "BDRS",
+    "description": "ED-Hum - Religious Studies"
+  },
+  {
+    "code": "BDWH",
+    "description": "ED-Hum - World History"
+  },
+  {
+    "code": "BDAN",
+    "description": "ED-Nat Sci - Addl Natural Sci"
+  },
+  {
+    "code": "BDBS",
+    "description": "ED-Nat Sci - Biological Sci"
+  },
+  {
+    "code": "BDMA",
+    "description": "ED-Nat Sci - Math/Stat/CS"
+  },
+  {
+    "code": "BDPS",
+    "description": "ED-Nat Sci - Physical Sci"
+  },
+  {
+    "code": "BDAS",
+    "description": "ED-Soc Sci - Addl Social Sci"
+  },
+  {
+    "code": "BDAT",
+    "description": "ED-Soc Sci - Anth/Psyc/Soc"
+  },
+  {
+    "code": "BDEC",
+    "description": "ED-Soc Sci - Economics/Pol Sci"
+  },
+  {
+    "code": "BEAD",
+    "description": "EN-ABET Depth"
+  },
+  {
+    "code": "BEE1",
+    "description": "EN-Composition - 1st Qtr"
+  },
+  {
+    "code": "BEE2",
+    "description": "EN-Composition - 2nd Qtr"
+  },
+  {
+    "code": "BEE3",
+    "description": "EN-Composition - 3rd Qtr"
+  },
+  {
+    "code": "BEEW",
+    "description": "EN-Composition - 3rd Qtr WAC"
+  },
+  {
+    "code": "BEET",
+    "description": "EN-Ethnicity"
+  },
+  {
+    "code": "BEAH",
+    "description": "EN-Hum - Addl Humanities"
+  },
+  {
+    "code": "BEFA",
+    "description": "EN-Hum - FA/Lit/Phil/Rel"
+  },
+  {
+    "code": "BEWH",
+    "description": "EN-Hum - World History"
+  },
+  {
+    "code": "BEAN",
+    "description": "EN-Nat Sci - Addl Natural Sci"
+  },
+  {
+    "code": "BEBS",
+    "description": "EN-Nat Sci - Biological Sci"
+  },
+  {
+    "code": "BEMA",
+    "description": "EN-Nat Sci - Math/Stat/CS"
+  },
+  {
+    "code": "BEPS",
+    "description": "EN-Nat Sci - Physical Sci"
+  },
+  {
+    "code": "BEAS",
+    "description": "EN-Soc Sci - Addl Social Sci"
+  },
+  {
+    "code": "BEAT",
+    "description": "EN-Soc Sci - Anth/Psyc/Soc"
+  },
+  {
+    "code": "BEEC",
+    "description": "EN-Soc Sci - Economics/Pol Sci"
+  },
+  {
+    "code": "BHE1",
+    "description": "HS-Composition - 1st Qtr"
+  },
+  {
+    "code": "BHE2",
+    "description": "HS-Composition - 2nd Qtr"
+  },
+  {
+    "code": "BHE3",
+    "description": "HS-Composition - 3rd Qtr"
+  },
+  {
+    "code": "BHEW",
+    "description": "HS-Composition - 3rd Qtr WAC"
+  },
+  {
+    "code": "BHET",
+    "description": "HS-Ethnicity"
+  },
+  {
+    "code": "BHF1",
+    "description": "HS-Foreign Language - BA"
+  },
+  {
+    "code": "BHF2",
+    "description": "HS-Foreign Language - BS"
+  },
+  {
+    "code": "BHAH",
+    "description": "HS-Hum - Addl Humanities"
+  },
+  {
+    "code": "BHFA",
+    "description": "HS-Hum - Fine Arts"
+  },
+  {
+    "code": "BHLT",
+    "description": "HS-Hum - Literature"
+  },
+  {
+    "code": "BHPH",
+    "description": "HS-Hum - Philosophy"
+  },
+  {
+    "code": "BHRS",
+    "description": "HS-Hum - Religious Studies"
+  },
+  {
+    "code": "BHWH",
+    "description": "HS-Hum - World History"
+  },
+  {
+    "code": "BHAN",
+    "description": "HS-Nat Sci - Addl Natural Sci"
+  },
+  {
+    "code": "BHBS",
+    "description": "HS-Nat Sci - Biological Sci"
+  },
+  {
+    "code": "BHMA",
+    "description": "HS-Nat Sci - Math/Stat/CS"
+  },
+  {
+    "code": "BHPS",
+    "description": "HS-Nat Sci - Physical Sci"
+  },
+  {
+    "code": "BHAS",
+    "description": "HS-Soc Sci - Addl Social Sci"
+  },
+  {
+    "code": "BHAT",
+    "description": "HS-Soc Sci - Anth/Psyc/Soc"
+  },
+  {
+    "code": "BHEC",
+    "description": "HS-Soc Sci - Economics/Pol Sci"
+  },
+  {
+    "code": "BNE1",
+    "description": "NA-Composition - 1st Qtr"
+  },
+  {
+    "code": "BNE2",
+    "description": "NA-Composition - 2nd Qtr"
+  },
+  {
+    "code": "BNE3",
+    "description": "NA-Composition - 3rd Qtr"
+  },
+  {
+    "code": "BNET",
+    "description": "NA-Ethnicity"
+  },
+  {
+    "code": "BNF1",
+    "description": "NA-Foreign Language - BA Lvl 4"
+  },
+  {
+    "code": "BNAH",
+    "description": "NA-Hum - Addl Humanities"
+  },
+  {
+    "code": "BNFA",
+    "description": "NA-Hum - Fine Arts"
+  },
+  {
+    "code": "BNLT",
+    "description": "NA-Hum - Literature"
+  },
+  {
+    "code": "BNPH",
+    "description": "NA-Hum - Philosophy"
+  },
+  {
+    "code": "BNRS",
+    "description": "NA-Hum - Religious Studies"
+  },
+  {
+    "code": "BNWH",
+    "description": "NA-Hum - World History"
+  },
+  {
+    "code": "BNAN",
+    "description": "NA-Nat Sci - Addl Natural Sci"
+  },
+  {
+    "code": "BNBS",
+    "description": "NA-Nat Sci - Biological Sci"
+  },
+  {
+    "code": "BNMA",
+    "description": "NA-Nat Sci - Math/Stat/CS"
+  },
+  {
+    "code": "BNPS",
+    "description": "NA-Nat Sci - Physical Sci"
+  },
+  {
+    "code": "BNAS",
+    "description": "NA-Soc Sci - Addl Social Sci"
+  },
+  {
+    "code": "BNAT",
+    "description": "NA-Soc Sci - Anth/Psyc/Soc"
+  },
+  {
+    "code": "BNEC",
+    "description": "NA-Soc Sci - Economics/Pol Sci"
+  },
+  {
+    "code": "BPE1",
+    "description": "PP-Composition - 1st Qtr"
+  },
+  {
+    "code": "BPE2",
+    "description": "PP-Composition - 2nd Qtr"
+  },
+  {
+    "code": "BPE3",
+    "description": "PP-Composition - 3rd Qtr"
+  },
+  {
+    "code": "BPEW",
+    "description": "PP-Composition - 3rd Qtr WAC"
+  },
+  {
+    "code": "BPET",
+    "description": "PP-Ethnicity"
+  },
+  {
+    "code": "BPF1",
+    "description": "PP-Foreign Language - BA"
+  },
+  {
+    "code": "BPF2",
+    "description": "PP-Foreign Language - BS"
+  },
+  {
+    "code": "BPAH",
+    "description": "PP-Hum - Addl Humanities"
+  },
+  {
+    "code": "BPFA",
+    "description": "PP-Hum - Fine Arts"
+  },
+  {
+    "code": "BPLT",
+    "description": "PP-Hum - Literature"
+  },
+  {
+    "code": "BPPH",
+    "description": "PP-Hum - Philosophy"
+  },
+  {
+    "code": "BPRS",
+    "description": "PP-Hum - Religious Studies"
+  },
+  {
+    "code": "BPWH",
+    "description": "PP-Hum - World History"
+  },
+  {
+    "code": "BPAN",
+    "description": "PP-Nat Sci - Addl Natural Sci"
+  },
+  {
+    "code": "BPBS",
+    "description": "PP-Nat Sci - Biological Sci"
+  },
+  {
+    "code": "BPMA",
+    "description": "PP-Nat Sci - Math/Stat/CS"
+  },
+  {
+    "code": "BPPS",
+    "description": "PP-Nat Sci - Physical Sci"
+  },
+  {
+    "code": "BPAS",
+    "description": "PP-Soc Sci - Addl Social Sci"
+  },
+  {
+    "code": "BPAT",
+    "description": "PP-Soc Sci - Anth/Psyc/Soc"
+  },
+  {
+    "code": "BPEC",
+    "description": "PP-Soc Sci - Economics/Pol Sci"
+  },
+  {
+    "code": "SUST",
+    "description": "Sustainability"
+  },
+  {
+    "code": "UUAH",
+    "description": "U-University American History"
+  },
+  {
+    "code": "UUBW",
+    "description": "U-University Basic Writing"
+  }
+]
