@@ -24,3 +24,12 @@ However, I wanted to enable students to go past "good enough" and reach a point 
 - Once the student is satisfied with course selection, the system will generate the combinations and rank them.
 - The student can browse, add, hide, and/or further filter the schedules.
 - A student can use a saved schedule as the base for fitting in more classes as well, (i.e. I currently have CS100, CS111, MATH046, and I need an ethnicity course in the morning on MWF).
+
+## Current Status
+
+This project is under active development. The current frontend includes:
+- A full app shell (sidebar navigation + header) built with React, TypeScript, Tailwind CSS, and shadcn/ui
+- A fully built **Schedule Builder** page showing a locked weekly schedule, generated schedule combinations, and a course search panel
+- Other sidebar pages (Dashboard, Course Search, Combos, Requirements, Saved Schedules, Settings) are placeholders pending future work
+
+All data shown is currently hardcoded mock data shaped to match the planned backend API (see `backend/BACKEND_API.md`). Backend integration is not yet connected.
