@@ -1,4 +1,4 @@
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,8 +53,8 @@ export function CombinationCard({ combo }: CombinationCardProps) {
         )}
 
         <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-1 text-sm text-green-700">
-            <CheckCircle2 className="h-4 w-4" />
+          <div className={`flex items-center gap-1 text-sm ${combo.hasConflicts ? "text-red-700" : "text-green-700"}`}>
+            {combo.hasConflicts ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
             {combo.hasConflicts ? "Conflicts" : "No Conflicts"}
           </div>
           <Button size="sm">View Details</Button>
