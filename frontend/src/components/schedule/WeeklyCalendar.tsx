@@ -1,4 +1,6 @@
-import type { Section, WeekDay } from "@/data/mockSchedule";
+import type { Section } from "@/lib/api";
+
+type WeekDay = "M" | "T" | "W" | "R" | "F" | "S" | "U";
 
 const days: { key: WeekDay; label: string }[] = [
   { key: "M", label: "Mon" },
@@ -12,11 +14,25 @@ const startHour = 8; // 8 AM
 const endHour = 18; // 6 PM
 const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
 
-const colorByCourse: Record<string, string> = {
-  MATH: "bg-blue-100 border-blue-400 text-blue-900",
-  CS: "bg-green-100 border-green-400 text-green-900",
-  ENGL: "bg-yellow-100 border-yellow-400 text-yellow-900",
-};
+const subjectColors = [
+  { bg: "bg-blue-50 border-blue-200 text-blue-900" },
+  { bg: "bg-emerald-50 border-emerald-200 text-emerald-900" },
+  { bg: "bg-amber-50 border-amber-200 text-amber-900" },
+  { bg: "bg-purple-50 border-purple-200 text-purple-900" },
+  { bg: "bg-rose-50 border-rose-200 text-rose-900" },
+  { bg: "bg-indigo-50 border-indigo-200 text-indigo-900" },
+  { bg: "bg-cyan-50 border-cyan-200 text-cyan-900" },
+  { bg: "bg-violet-50 border-violet-200 text-violet-900" },
+];
+
+function getSubjectColor(subject: string): string {
+  let hash = 0;
+  for (let i = 0; i < subject.length; i++) {
+    hash = subject.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % subjectColors.length;
+  return subjectColors[idx].bg;
+}
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -106,7 +122,7 @@ export function WeeklyCalendar({ sections }: WeeklyCalendarProps) {
             {blocks
               .filter((b) => b.day === day.key)
               .map((b, i) => {
-                const colorClass = colorByCourse[b.section.courseId.subject] ?? "bg-gray-100 border-gray-400 text-gray-900";
+                const colorClass = getSubjectColor(b.section.courseId.subject);
                 const meeting = b.section.meetingTimes.find((m) => m.weekDays.includes(day.key))!;
                 return (
                   <div
