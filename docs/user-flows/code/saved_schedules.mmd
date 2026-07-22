@@ -1,0 +1,41 @@
+flowchart TD
+    A["User on /saved-schedules"] --> B{"User signed in?"}
+    
+    B -->|No| C["Full-page auth gate:\n'Sign in to Saved Schedules'\nButton: 'Go to Sign In Settings'"]
+    C --> D["window.location.href = '/settings'\n(full page reload, not SPA nav)"]
+    
+    B -->|Yes| E["GET /api/schedules"]
+    E --> F["Left sidebar: list of saved schedule cards\nShows name, termCode, section count"]
+    
+    F --> G{"User clicks a schedule"}
+    G --> H["selectedSchedule state set"]
+    H --> I["GET /api/schedules/:id/analyze"]
+    
+    subgraph PreviewPanel ["Main Preview Area"]
+        I --> J["WeeklyCalendar renders\nsectionIds from saved schedule"]
+        J --> K["Delete Plan button (destructive)"]
+    end
+    
+    subgraph AnalyticsPanel ["Analytics Side Panel (320px)"]
+        I --> L["Stats grid:\nTotal Credits | Active Days"]
+        L --> M["Detail rows:\nEarliest Start | Latest End\nTotal Gap Minutes | Days Off"]
+        M --> N{"Conflicts detected?"}
+        N -->|Yes| O["Red warning box listing\neach overlap by day and time range"]
+        N -->|No| P["Green box: 'No time overlaps'"]
+    end
+    
+    subgraph ExportPanel ["ICS Export Customization"]
+        Q["Reminder dropdown:\nnone / 5 / 10 / 15 / 30 min"]
+        R["Checkboxes:\nForce Title Case\nInclude Instructor\nInclude CRN"]
+        Q --> S["Export button generates URL:\n/api/schedules/:id/export.ics?options=base64"]
+        R --> S
+        S --> T["Opens in new tab\nDownloads .ics file"]
+    end
+    
+    K --> U{"User clicks Delete Plan"}
+    U --> V["confirm() dialog"]
+    V -->|Cancel| W["No action"]
+    V -->|OK| X["DELETE /api/schedules/:id"]
+    X --> Y["Re-fetches schedule list\nSelects first remaining schedule"]
+    
+    style D fill:#ffd,stroke:#aa0

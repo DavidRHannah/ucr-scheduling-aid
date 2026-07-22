@@ -1,0 +1,15 @@
+flowchart TD
+    A["Admin on /settings"] --> B["Catalog Synchronization card\n(visible to all users, not just admins)"]
+    
+    B --> C["Form fields:\n1. Term Code (default: 202620)\n2. Subjects (default: CS, MATH)\n3. Admin Ingest Key (password field)"]
+    
+    C --> D["User clicks 'Trigger Ingestion Sync'"]
+    D --> E["POST /api/sync\nHeaders: intake_api_key\nBody: termCode, subjects array"]
+    
+    E -->|Success| F["Blue banner:\n'Synced N courses and N sections'"]
+    E -->|401 Unauthorized| G["Red banner:\n'Verify API key and backend connection'"]
+    E -->|Network Error| H["Red banner with error message"]
+    
+    F --> I["Data now available in\ncatalog search endpoints"]
+    
+    style B fill:#ffd,stroke:#aa0

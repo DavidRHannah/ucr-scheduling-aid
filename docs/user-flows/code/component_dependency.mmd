@@ -1,0 +1,50 @@
+flowchart TD
+    subgraph Pages ["Route Pages"]
+        P1["ScheduleBuilder"]
+        P2["CourseSearchPage"]
+        P3["SavedSchedules"]
+        P4["Settings"]
+    end
+    
+    subgraph ScheduleComponents ["schedule/ Components"]
+        SC1["WeeklyCalendar"]
+        SC2["CombinationsList"]
+        SC3["CombinationCard"]
+        SC4["StatusBanner"]
+    end
+    
+    subgraph SearchComponents ["search/ Components"]
+        SR1["CourseSearchPanel"]
+        SR2["CourseResultCard (DEAD CODE)"]
+    end
+    
+    subgraph Shared ["Shared Infrastructure"]
+        API["lib/api.ts\n(9 of 18 functions unused)"]
+        AUTH["context/AuthContext"]
+        HDR["Header.tsx\n(disconnected from auth and term state)"]
+    end
+    
+    P1 --> SC1
+    P1 --> SC2
+    P1 --> SC4
+    P1 --> SR1
+    P1 --> API
+    P1 --> AUTH
+    
+    SC2 --> SC3
+    
+    SR1 --> API
+    
+    P2 --> API
+    
+    P3 --> SC1
+    P3 --> API
+    P3 --> AUTH
+    
+    P4 --> API
+    P4 --> AUTH
+    
+    SR2 -.->|"Never imported"| API
+    
+    style SR2 fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style HDR fill:#ffd,stroke:#aa0

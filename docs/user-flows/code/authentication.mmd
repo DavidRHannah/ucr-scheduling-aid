@@ -1,0 +1,23 @@
+flowchart TD
+    A["User navigates to /settings"] --> B{"Already signed in?"}
+    
+    B -->|Yes| C["Shows User Profile card\nwith display name and email"]
+    C --> D["Log Out button available"]
+    D --> E["Clears localStorage token\nClears user state"]
+    
+    B -->|No| F["Shows Sign In card"]
+    F --> G{"Toggle: Register or Sign In"}
+    
+    G -->|Register| H["Form: Display Name + Email + Password"]
+    H --> I["POST /api/auth/register"]
+    I -->|Success| J["Token + user stored in localStorage\nAuthContext updates globally"]
+    I -->|Error| K["Error banner shows in card\n(e.g. duplicate email, short password)"]
+    
+    G -->|Sign In| L["Form: Email + Password"]
+    L --> M["POST /api/auth/login"]
+    M -->|Success| J
+    M -->|Error| N["Error banner shows in card\n(e.g. invalid credentials)"]
+    
+    J --> O{"User stays on Settings page\nNo redirect to Builder or\nSaved Schedules"}
+    
+    style O fill:#ffd,stroke:#aa0

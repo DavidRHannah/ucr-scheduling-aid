@@ -1,35 +1,137 @@
 # UCR Scheduling Aid
 
-![UCR Scheduling Aid Dashboard](docs/ucr_scheduling_aid.webp)
+A full-stack web application designed to help UC Riverside students build, optimize, and export conflict-free course schedules using actual class registration catalog data.
 
-## Why
+---
 
-The goal of this project is to simplify course scheduling for UCR students.
+## Features
 
-The flow is the same for many students every quarter: Receive the schedule of courses, go through different combinations of courses and classes until they find one that is "good enough." 
+### 1. Interactive Schedule Builder
+- Select multiple target courses from the catalog basket.
+- Backtrack DFS combinatorics engine calculates all conflict-free combinations in real-time.
+- Toggle pin/lock icons on sections to freeze specific course times (e.g. lock a lecture CRN) and regenerate the remaining components around it.
+- Save active combinations to personal database profiles.
 
-However, I wanted to enable students to go past "good enough" and reach a point where they know that they have the optimal schedule for their circumstances.
+### 2. Standalone Course Catalog Browser
+- View paginated catalog results with keyword search and department filters.
+- Displays course description sheets, populated course prerequisite logic pools, and term section lists.
 
-### Features
-- Create, plan, and share course schedules with friends using live registration data for the current quarter
-- Support the degree planning process via a degree aware scheduling system (based on most recent catalog)
-- Plan, visualize, and share their remaining quarters until graduation.
+### 3. Saved Schedules and Analysis
+- Manage saved quarters plans with private ownership filters.
+- Fetches dynamic analytics reports detailing total credits, active days, class minutes, gaps, and schedule overlaps/conflicts.
+- Exports schedules to Google or Apple Calendar using customized timezone-adjusted RFC 5545 iCalendar feeds.
+- Supports customized feed descriptions and alarms.
 
-## How
-- The first stage of the process is gaining degree requirement data from the UCR Catalog.
-- The system then understands the requirements for each degree and college according to the requirement data.
-- The student may input their previous quarters for more personalized suggestions or just use the course scheduler
-- The course scheduler takes into account the students' major and college for course searching.
-- The student can filter the attributes of the courses they want to take or just search for and add them.
-- Once the student is satisfied with course selection, the system will generate the combinations and rank them.
-- The student can browse, add, hide, and/or further filter the schedules.
-- A student can use a saved schedule as the base for fitting in more classes as well, (i.e. I currently have CS100, CS111, MATH046, and I need an ethnicity course in the morning on MWF).
+### 4. User Accounts and Settings
+- Create secure credentials profiles with password hashing.
+- Features an administrative synchronization console allowing sync triggers for UCR Banner SIS data.
 
-## Current Status
+---
 
-This project is under active development. The current frontend includes:
-- A full app shell (sidebar navigation + header) built with React, TypeScript, Tailwind CSS, and shadcn/ui
-- A fully built **Schedule Builder** page showing a locked weekly schedule, generated schedule combinations, and a course search panel
-- Other sidebar pages (Dashboard, Course Search, Combos, Requirements, Saved Schedules, Settings) are placeholders pending future work
+## Tech Stack
 
-All data shown is currently hardcoded mock data shaped to match the planned backend API (see `backend/BACKEND_API.md`). Backend integration is not yet connected.
+### Frontend
+- **Framework:** React 19 + TypeScript 6
+- **Bundler:** Vite 8
+- **Styling:** Tailwind CSS 4 + shadcn/ui components
+- **Routing:** React Router DOM 7
+
+### Backend
+- **Runtime:** Node.js Express (ES Modules)
+- **Database:** MongoDB / Mongoose ODM
+- **Auth:** JWT Access Tokens (7-day expiry)
+- **Data Intake:** In-memory bulk write pipelines processing UCR Banner SIS dumps
+
+---
+
+## Directory Structure
+
+```
+ucr-scheduling-aid/
+├── frontend/             # React SPA (Vite + TS + Tailwind)
+│   ├── src/
+│   │   ├── components/   # Layout, search, and weekly calendar widgets
+│   │   ├── context/      # Authentication state providers
+│   │   ├── lib/          # API fetch client wrappers
+│   │   ├── pages/        # Core screens (Catalog Search, Saved Schedules, builder)
+│   │   └── main.tsx      # Entry point
+│   └── package.json
+├── backend/              # Node.js Express REST API server
+│   ├── config/           # Database connections
+│   ├── controllers/      # Route logic handlers
+│   ├── middleware/       # Auth guards and intake key verification
+│   ├── models/           # Mongoose schemas
+│   ├── routes/           # REST endpoints
+│   ├── utils/            # DFS combination solvers and iCal string compilers
+│   ├── tests/            # Mock controller integration test suites
+│   ├── reqs.json         # Reference GE Breadth requirements list
+│   ├── EN-AbetDepth.json # Reference Engineering catalog section dump
+│   ├── BACKEND_API.md    # API REST contracts
+│   └── package.json
+├── requirements/         # System specifications
+└── stories/              # Agile backlog epics and acceptance criteria
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v18+)
+- MongoDB (running locally or via URI connection)
+
+### 1. Backend Setup
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+3. Set your MongoDB connection URI and signing secrets in `.env`.
+4. Install dependencies:
+   ```bash
+   npm install
+   ```
+5. Start the development API server:
+   ```bash
+   npm run dev
+   ```
+   *The server runs by default on port 3000.*
+
+### 2. Frontend Setup
+1. Navigate to the frontend directory:
+   ```bash
+   cd ../frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the Vite development SPA:
+   ```bash
+   npm run dev
+   ```
+   *The V1 client runs by default on port 5173.*
+
+---
+
+## Verification and Testing
+
+### Running API Integration Tests
+The backend contains 25 test cases verifying authentication validation, catalog cursors, bulk ingestion parsing, gap analytics, and calendar feed configurations:
+1. Navigate to the backend directory.
+2. Execute the test command:
+   ```bash
+   npm test
+   ```
+
+### Building Frontend for Production
+To compile and bundle the React SPA into static production assets:
+1. Navigate to the frontend directory.
+2. Run the compiler:
+   ```bash
+   npm run build
+   ```
+   *Output files will be generated in `frontend/dist/`.*
