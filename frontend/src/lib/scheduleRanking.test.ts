@@ -7,6 +7,12 @@ import {
   daysSubscore,
   collectBlocks,
   gapsSubscore,
+  collectSections,
+  availabilitySubscore,
+  normalizeWeights,
+  scoreSchedule,
+  rankSchedules,
+  type RankingPreferences,
 } from "./scheduleRanking";
 
 /**
@@ -248,5 +254,146 @@ describe("gapsSubscore, none mode", () => {
 describe("gapsSubscore, fully asynchronous", () => {
   it("scores 1 in lunch mode without dividing by zero", () => {
     expect(gapsSubscore(makeSchedule({ activeDays: [], groups: [] }), "lunch")).toBe(1);
+  });
+});
+
+const basePrefs: RankingPreferences = {
+  startThresholdMinutes: 540, // 09:00
+  gapMode: "none",
+  weights: { start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 },
+};
+
+/** Builds a schedule whose sections carry the given statuses. */
+function makeScheduleWithStatuses(statuses: string[]): GeneratedSchedule {
+  return makeSchedule({
+    groups: [{ sections: statuses.map((status) => ({ status, blocks: [] })) }],
+  } as unknown as Partial<GeneratedSchedule>);
+}
+
+describe("collectSections", () => {
+  it("flattens sections across groups", () => {
+    expect(collectSections(makeScheduleWithStatuses(["Open", "Closed"]))).toHaveLength(2);
+  });
+});
+
+describe("availabilitySubscore", () => {
+  it("scores 1 when every section is open", () => {
+    expect(availabilitySubscore(makeScheduleWithStatuses(["Open", "Open"]))).toBe(1);
+  });
+
+  it("scores 0 when every section is closed", () => {
+    expect(availabilitySubscore(makeScheduleWithStatuses(["Closed", "Closed"]))).toBe(0);
+  });
+
+  it("scores waitlisted sections at one half", () => {
+    expect(availabilitySubscore(makeScheduleWithStatuses(["Waitlisted"]))).toBe(0.5);
+  });
+
+  it("averages mixed statuses", () => {
+    expect(availabilitySubscore(makeScheduleWithStatuses(["Open", "Closed"]))).toBe(0.5);
+  });
+
+  it("scores 1 when there are no sections", () => {
+    expect(availabilitySubscore(makeSchedule({ groups: [] }))).toBe(1);
+  });
+});
+
+describe("normalizeWeights", () => {
+  it("leaves weights summing to 1 unchanged", () => {
+    const result = normalizeWeights({ start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 }, "lunch");
+    expect(result.start).toBeCloseTo(0.25);
+  });
+
+  it("rescales weights that do not sum to 1", () => {
+    const result = normalizeWeights({ start: 2, days: 2, gaps: 2, availability: 2 }, "lunch");
+    expect(result.start).toBeCloseTo(0.25);
+  });
+
+  it("zeroes the gap weight and redistributes when mode is none", () => {
+    const result = normalizeWeights({ start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 }, "none");
+    expect(result.gaps).toBe(0);
+    expect(result.start).toBeCloseTo(1 / 3);
+    expect(result.start + result.days + result.availability).toBeCloseTo(1);
+  });
+
+  it("falls back to equal weights when everything is zero", () => {
+    const result = normalizeWeights({ start: 0, days: 0, gaps: 0, availability: 0 }, "lunch");
+    expect(result.start).toBeCloseTo(0.25);
+  });
+});
+
+describe("scoreSchedule", () => {
+  it("returns 100 when every subscore is perfect", () => {
+    const perfect = makeSchedule({
+      earliestStart: "12:00",
+      activeDays: ["M"],
+      totalGapMinutes: 0,
+      groups: [{ sections: [{ status: "Open", blocks: [] }] }],
+    } as unknown as Partial<GeneratedSchedule>);
+    expect(scoreSchedule(perfect, basePrefs).score).toBe(100);
+  });
+
+  it("returns 0 when every subscore is zero", () => {
+    const worst = makeSchedule({
+      earliestStart: "05:00",
+      activeDays: ["M", "T", "W", "R", "F"],
+      totalGapMinutes: 900,
+      groups: [{ sections: [{ status: "Closed", blocks: [] }] }],
+    } as unknown as Partial<GeneratedSchedule>);
+    expect(scoreSchedule(worst, { ...basePrefs, gapMode: "tight" }).score).toBe(0);
+  });
+});
+
+describe("rankSchedules", () => {
+  it("orders higher scores first", () => {
+    const good = makeSchedule({ activeDays: ["M"], groups: [] });
+    const bad = makeSchedule({ activeDays: ["M", "T", "W", "R", "F"], groups: [] });
+    const ranked = rankSchedules([bad, good], basePrefs);
+    expect(ranked[0].schedule).toBe(good);
+    expect(ranked[0].originalIndex).toBe(1);
+  });
+
+  it("NEVER removes a combination, whatever the preferences", () => {
+    const schedules = [
+      makeScheduleWithStatuses(["Closed", "Closed"]),
+      makeScheduleWithStatuses(["Open"]),
+      makeScheduleWithStatuses(["Waitlisted"]),
+    ];
+    const configs: RankingPreferences[] = [
+      basePrefs,
+      { ...basePrefs, gapMode: "tight" },
+      { ...basePrefs, weights: { start: 0, days: 0, gaps: 0, availability: 1 } },
+      { ...basePrefs, startThresholdMinutes: 1200 },
+    ];
+    for (const prefs of configs) {
+      const ranked = rankSchedules(schedules, prefs);
+      expect(ranked).toHaveLength(schedules.length);
+      expect(new Set(ranked.map((r) => r.schedule))).toEqual(new Set(schedules));
+    }
+  });
+
+  it("breaks ties by availability, then fewer days, then earlier end", () => {
+    const lowAvailability = makeSchedule({
+      activeDays: ["M"],
+      groups: [{ sections: [{ status: "Closed", blocks: [] }] }],
+    } as unknown as Partial<GeneratedSchedule>);
+    const highAvailability = makeSchedule({
+      activeDays: ["M"],
+      groups: [{ sections: [{ status: "Open", blocks: [] }] }],
+    } as unknown as Partial<GeneratedSchedule>);
+    const zeroWeights: RankingPreferences = {
+      ...basePrefs,
+      weights: { start: 0, days: 0, gaps: 0, availability: 0 },
+    };
+    const ranked = rankSchedules([lowAvailability, highAvailability], zeroWeights);
+    expect(ranked[0].schedule).toBe(highAvailability);
+  });
+
+  it("is stable for fully equivalent schedules", () => {
+    const a = makeSchedule({ groups: [] });
+    const b = makeSchedule({ groups: [] });
+    const ranked = rankSchedules([a, b], basePrefs);
+    expect(ranked[0].schedule).toBe(a);
+    expect(ranked[1].schedule).toBe(b);
   });
 });
