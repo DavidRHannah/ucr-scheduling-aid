@@ -208,3 +208,62 @@ export function rankSchedules(
     return a.originalIndex - b.originalIndex;
   });
 }
+
+/** A subscore at or above this reads as a genuine strength worth stating. */
+const CHIP_STRENGTH_THRESHOLD = 0.8;
+const MAX_CHIPS = 4;
+
+const DAY_LABELS: Record<string, string> = {
+  M: "Mon",
+  T: "Tue",
+  W: "Wed",
+  R: "Thu",
+  F: "Fri",
+  S: "Sat",
+  U: "Sun",
+};
+
+export interface ExplanationChip {
+  label: string;
+  tone: "positive" | "caution";
+}
+
+/**
+ * Turns subscores into plain statements of why a schedule ranked where it did.
+ * A bare score is not trustworthy; a justified score is.
+ */
+export function buildChips(
+  schedule: GeneratedSchedule,
+  subscores: Subscores,
+  prefs: RankingPreferences,
+): ExplanationChip[] {
+  const positive: ExplanationChip[] = [];
+  const cautions: ExplanationChip[] = [];
+
+  if (subscores.start >= CHIP_STRENGTH_THRESHOLD && !isFullyAsync(schedule)) {
+    positive.push({ label: `No classes before ${schedule.earliestStart}`, tone: "positive" });
+  }
+
+  if (schedule.daysOff.length > 0) {
+    const labels = schedule.daysOff.map((day) => DAY_LABELS[day] ?? day).join(", ");
+    positive.push({ label: `${labels} free`, tone: "positive" });
+  }
+
+  if (subscores.gaps >= CHIP_STRENGTH_THRESHOLD) {
+    if (prefs.gapMode === "tight") {
+      positive.push({ label: "Short gaps between classes", tone: "positive" });
+    } else if (prefs.gapMode === "lunch") {
+      positive.push({ label: "Midday break most days", tone: "positive" });
+    }
+  }
+
+  if (subscores.availability < 1) {
+    const sections = collectSections(schedule);
+    const waitlisted = sections.filter((s) => s.status === "Waitlisted").length;
+    const closed = sections.filter((s) => s.status === "Closed").length;
+    if (waitlisted > 0) cautions.push({ label: `${waitlisted} waitlisted`, tone: "caution" });
+    if (closed > 0) cautions.push({ label: `${closed} closed`, tone: "caution" });
+  }
+
+  return [...positive, ...cautions].slice(0, MAX_CHIPS);
+}

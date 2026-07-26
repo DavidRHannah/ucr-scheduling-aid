@@ -12,7 +12,9 @@ import {
   normalizeWeights,
   scoreSchedule,
   rankSchedules,
+  buildChips,
   type RankingPreferences,
+  type Subscores,
 } from "./scheduleRanking";
 
 /**
@@ -395,5 +397,70 @@ describe("rankSchedules", () => {
     const ranked = rankSchedules([a, b], basePrefs);
     expect(ranked[0].schedule).toBe(a);
     expect(ranked[1].schedule).toBe(b);
+  });
+});
+
+const perfectSubscores: Subscores = { start: 1, days: 1, gaps: 1, availability: 1 };
+
+describe("buildChips", () => {
+  it("reports a late start when the start subscore is strong", () => {
+    const schedule = makeSchedule({ earliestStart: "10:00", daysOff: [] });
+    const chips = buildChips(schedule, perfectSubscores, basePrefs);
+    expect(chips.some((c) => c.label === "No classes before 10:00")).toBe(true);
+  });
+
+  it("reports days off when any exist", () => {
+    const schedule = makeSchedule({ daysOff: ["F"] });
+    const chips = buildChips(schedule, perfectSubscores, basePrefs);
+    expect(chips.some((c) => c.label === "Fri free")).toBe(true);
+  });
+
+  it("names multiple days off together", () => {
+    const schedule = makeSchedule({ daysOff: ["T", "R"] });
+    const chips = buildChips(schedule, perfectSubscores, basePrefs);
+    expect(chips.some((c) => c.label === "Tue, Thu free")).toBe(true);
+  });
+
+  it("describes tight gaps in tight mode", () => {
+    const chips = buildChips(makeSchedule({ daysOff: [] }), perfectSubscores, {
+      ...basePrefs,
+      gapMode: "tight",
+    });
+    expect(chips.some((c) => c.label === "Short gaps between classes")).toBe(true);
+  });
+
+  it("describes a midday break in lunch mode", () => {
+    const chips = buildChips(makeSchedule({ daysOff: [] }), perfectSubscores, {
+      ...basePrefs,
+      gapMode: "lunch",
+    });
+    expect(chips.some((c) => c.label === "Midday break most days")).toBe(true);
+  });
+
+  it("raises a caution for waitlisted sections", () => {
+    const schedule = makeScheduleWithStatuses(["Open", "Waitlisted"]);
+    const chips = buildChips(schedule, { ...perfectSubscores, availability: 0.75 }, basePrefs);
+    const caution = chips.find((c) => c.label === "1 waitlisted");
+    expect(caution?.tone).toBe("caution");
+  });
+
+  it("raises a caution for closed sections", () => {
+    const schedule = makeScheduleWithStatuses(["Open", "Closed", "Closed"]);
+    const chips = buildChips(schedule, { ...perfectSubscores, availability: 0.33 }, basePrefs);
+    expect(chips.some((c) => c.label === "2 closed" && c.tone === "caution")).toBe(true);
+  });
+
+  it("returns at most four chips and puts cautions last", () => {
+    const schedule = makeSchedule({
+      earliestStart: "10:00",
+      daysOff: ["T", "R"],
+      groups: [{ sections: [{ status: "Closed", blocks: [] }] }],
+    } as unknown as Partial<GeneratedSchedule>);
+    const chips = buildChips(schedule, { ...perfectSubscores, availability: 0 }, {
+      ...basePrefs,
+      gapMode: "lunch",
+    });
+    expect(chips.length).toBeLessThanOrEqual(4);
+    expect(chips[chips.length - 1].tone).toBe("caution");
   });
 });
