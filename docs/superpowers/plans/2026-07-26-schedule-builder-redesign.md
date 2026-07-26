@@ -18,7 +18,7 @@ Spec: `docs/superpowers/specs/2026-07-26-schedule-builder-redesign-design.md`
 - **No-removal invariant:** no preference may remove a combination from the result set. Preferences affect rank order only. Pinning a section is exempt: it is an explicit student constraint passed to the backend as `lockedSectionIds`, which legitimately changes what the generator produces. Do not "fix" pinning to satisfy the invariant.
 - Do not modify files in `components/ui/` (shadcn primitives).
 - Component tasks have no automated tests by design — the spec scopes Vitest to the pure scoring module only. Their verification is `npm run build`, `npm run lint`, and the stated manual check.
-- `npm run lint` must not exceed the pre-existing baseline of **25 problems (20 errors, 5 warnings)**. These are pre-existing `err: any` and `set-state-in-effect` issues. Do not introduce new ones.
+- `npm run lint` must not exceed the pre-existing baseline of **25 problems (20 errors, 5 warnings)** — pre-existing `err: any` and `set-state-in-effect` issues. Tasks 16 and 17 may reach **26**, and only if the 26th is a `react-hooks/set-state-in-effect` warning in `ScheduleBuilder.tsx` carried over from the original file. No task may introduce a new rule category.
 - All commands run from `frontend/`.
 
 ## Data Facts (verified against `backend/utils/generator.js`)
