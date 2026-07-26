@@ -67,6 +67,7 @@ export default function ScheduleBuilder() {
 
   const generate = useCallback(async () => {
     if (selectedCourses.length === 0) {
+      requestIdRef.current += 1;
       setCombinations([]);
       setNearMisses([]);
       setHasGenerated(false);
@@ -117,6 +118,7 @@ export default function ScheduleBuilder() {
   }, [generate]);
 
   useEffect(() => {
+    requestIdRef.current += 1;
     setSelectedCourses([]);
     setPinnedSections([]);
     setCombinations([]);
