@@ -20,8 +20,7 @@ const DEFAULT_END_HOUR = 18;
  * Bounds the grid to the sections actually present, with one hour of padding.
  * The old fixed 8:00-18:00 window silently hid evening classes.
  */
-// eslint-disable-next-line react-refresh/only-export-components -- pure helper exported for testing, not a component
-export function getVisibleHourRange(sections: Section[]): {
+function getVisibleHourRange(sections: Section[]): {
   startHour: number;
   endHour: number;
 } {
