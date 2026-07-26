@@ -268,3 +268,49 @@ export function buildChips(
   const room = Math.max(0, MAX_CHIPS - cautions.length);
   return [...positive.slice(0, room), ...cautions];
 }
+
+export type PresetName = "sleepIn" | "compactWeek" | "balanced";
+
+export const PRESETS: Record<PresetName, RankingPreferences> = {
+  sleepIn: {
+    startThresholdMinutes: 10 * 60,
+    gapMode: "none",
+    weights: { start: 0.5, days: 0.15, gaps: 0, availability: 0.35 },
+  },
+  compactWeek: {
+    startThresholdMinutes: 8 * 60,
+    gapMode: "tight",
+    weights: { start: 0.1, days: 0.5, gaps: 0.2, availability: 0.2 },
+  },
+  balanced: {
+    startThresholdMinutes: 9 * 60,
+    gapMode: "lunch",
+    weights: { start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 },
+  },
+};
+
+export const PRESET_LABELS: Record<PresetName, string> = {
+  sleepIn: "Sleep In",
+  compactWeek: "Compact Week",
+  balanced: "Balanced",
+};
+
+export const DEFAULT_PREFERENCES: RankingPreferences = PRESETS.balanced;
+
+/** Returns the preset these preferences exactly match, or null if customized. */
+export function matchPreset(prefs: RankingPreferences): PresetName | null {
+  const names = Object.keys(PRESETS) as PresetName[];
+  return (
+    names.find((name) => {
+      const preset = PRESETS[name];
+      return (
+        preset.startThresholdMinutes === prefs.startThresholdMinutes &&
+        preset.gapMode === prefs.gapMode &&
+        preset.weights.start === prefs.weights.start &&
+        preset.weights.days === prefs.weights.days &&
+        preset.weights.gaps === prefs.weights.gaps &&
+        preset.weights.availability === prefs.weights.availability
+      );
+    }) ?? null
+  );
+}

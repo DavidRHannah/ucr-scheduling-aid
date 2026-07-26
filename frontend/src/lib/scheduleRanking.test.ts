@@ -13,6 +13,9 @@ import {
   scoreSchedule,
   rankSchedules,
   buildChips,
+  PRESETS,
+  DEFAULT_PREFERENCES,
+  matchPreset,
   type RankingPreferences,
   type Subscores,
 } from "./scheduleRanking";
@@ -490,5 +493,49 @@ describe("buildChips", () => {
     });
     expect(chips.length).toBeLessThanOrEqual(4);
     expect(chips[chips.length - 1].tone).toBe("caution");
+  });
+});
+
+describe("presets", () => {
+  it("defines the three presets from the spec", () => {
+    expect(Object.keys(PRESETS).sort()).toEqual(["balanced", "compactWeek", "sleepIn"]);
+  });
+
+  it("sets Sleep In to a 10:00 threshold with no gap preference", () => {
+    expect(PRESETS.sleepIn.startThresholdMinutes).toBe(600);
+    expect(PRESETS.sleepIn.gapMode).toBe("none");
+    expect(PRESETS.sleepIn.weights.start).toBe(0.5);
+  });
+
+  it("sets Compact Week to weight days most heavily with tight gaps", () => {
+    expect(PRESETS.compactWeek.gapMode).toBe("tight");
+    expect(PRESETS.compactWeek.weights.days).toBe(0.5);
+    expect(PRESETS.compactWeek.startThresholdMinutes).toBe(480);
+  });
+
+  it("sets Balanced to even weights protecting a lunch break", () => {
+    expect(PRESETS.balanced.gapMode).toBe("lunch");
+    expect(PRESETS.balanced.startThresholdMinutes).toBe(540);
+    expect(PRESETS.balanced.weights).toEqual({
+      start: 0.25,
+      days: 0.25,
+      gaps: 0.25,
+      availability: 0.25,
+    });
+  });
+
+  it("defaults to Balanced", () => {
+    expect(DEFAULT_PREFERENCES).toEqual(PRESETS.balanced);
+  });
+});
+
+describe("matchPreset", () => {
+  it("identifies preferences equal to a preset", () => {
+    expect(matchPreset(PRESETS.sleepIn)).toBe("sleepIn");
+    expect(matchPreset(PRESETS.balanced)).toBe("balanced");
+  });
+
+  it("returns null for customized preferences", () => {
+    expect(matchPreset({ ...PRESETS.balanced, startThresholdMinutes: 660 })).toBeNull();
   });
 });
