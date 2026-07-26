@@ -10,9 +10,40 @@ const days: { key: WeekDay; label: string }[] = [
   { key: "F", label: "Fri" },
 ];
 
-const startHour = 8; // 8 AM
-const endHour = 18; // 6 PM
-const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
+/** Hard bounds so a stray record cannot render a 24-hour grid. */
+const MIN_HOUR = 6;
+const MAX_HOUR = 23;
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 18;
+
+/**
+ * Bounds the grid to the sections actually present, with one hour of padding.
+ * The old fixed 8:00-18:00 window silently hid evening classes.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- pure helper exported for testing, not a component
+export function getVisibleHourRange(sections: Section[]): {
+  startHour: number;
+  endHour: number;
+} {
+  const times = sections.flatMap((section) =>
+    section.meetingTimes.flatMap((meeting) => [
+      timeToMinutes(meeting.startTime),
+      timeToMinutes(meeting.endTime),
+    ]),
+  );
+
+  if (times.length === 0) {
+    return { startHour: DEFAULT_START_HOUR, endHour: DEFAULT_END_HOUR };
+  }
+
+  const earliest = Math.floor(Math.min(...times) / 60) - 1;
+  const latest = Math.ceil(Math.max(...times) / 60) + 1;
+
+  return {
+    startHour: Math.max(MIN_HOUR, earliest),
+    endHour: Math.min(MAX_HOUR, latest),
+  };
+}
 
 const subjectColors = [
   { bg: "bg-blue-50 border-blue-200 text-blue-900" },
@@ -46,7 +77,7 @@ interface PlacedBlock {
   rowSpan: number;
 }
 
-function placeBlocks(sections: Section[]): PlacedBlock[] {
+function placeBlocks(sections: Section[], startHour: number): PlacedBlock[] {
   const blocks: PlacedBlock[] = [];
   const gridStartMinutes = startHour * 60;
 
@@ -74,7 +105,9 @@ interface WeeklyCalendarProps {
 }
 
 export function WeeklyCalendar({ sections }: WeeklyCalendarProps) {
-  const blocks = placeBlocks(sections);
+  const { startHour, endHour } = getVisibleHourRange(sections);
+  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
+  const blocks = placeBlocks(sections, startHour);
   const rowCount = (endHour - startHour) * 2;
 
   return (
