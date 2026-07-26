@@ -38,10 +38,14 @@ function getVisibleHourRange(sections: Section[]): {
   const earliest = Math.floor(Math.min(...times) / 60) - 1;
   const latest = Math.ceil(Math.max(...times) / 60) + 1;
 
-  return {
-    startHour: Math.max(MIN_HOUR, earliest),
-    endHour: Math.min(MAX_HOUR, latest),
-  };
+  const startHour = Math.max(MIN_HOUR, earliest);
+  const endHour = Math.min(MAX_HOUR, latest);
+
+  if (startHour >= endHour) {
+    return { startHour: DEFAULT_START_HOUR, endHour: DEFAULT_END_HOUR };
+  }
+
+  return { startHour, endHour };
 }
 
 const subjectColors = [
