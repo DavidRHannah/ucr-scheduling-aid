@@ -167,7 +167,7 @@ describe("gapsSubscore, lunch mode", () => {
   });
 
   it("scores 0 when a qualifying-length gap falls outside 11:00 to 14:00", () => {
-    // 08:00-09:00 then 10:00-11:00, a 60 minute gap ending exactly at 11:00.
+    // 08:00-09:00 then 10:00-11:00, a 60 minute gap from 9:00-10:00, entirely before the window.
     const schedule = makeScheduleWithBlocks(
       [
         { day: "M", start: 480, end: 540 },
@@ -176,6 +176,54 @@ describe("gapsSubscore, lunch mode", () => {
       { activeDays: ["M"] },
     );
     expect(gapsSubscore(schedule, "lunch")).toBe(0);
+  });
+
+  it("scores 0 when the gap ends exactly at the window start", () => {
+    // Gap 10:00-11:00. gapEnd === 660, and the overlap test is strict.
+    const schedule = makeScheduleWithBlocks(
+      [
+        { day: "M", start: 540, end: 600 },
+        { day: "M", start: 660, end: 720 },
+      ],
+      { activeDays: ["M"] },
+    );
+    expect(gapsSubscore(schedule, "lunch")).toBe(0);
+  });
+
+  it("scores 0 when the gap starts exactly at the window end", () => {
+    // Gap 14:00-15:00. gapStart === 840, and the overlap test is strict.
+    const schedule = makeScheduleWithBlocks(
+      [
+        { day: "M", start: 780, end: 840 },
+        { day: "M", start: 900, end: 960 },
+      ],
+      { activeDays: ["M"] },
+    );
+    expect(gapsSubscore(schedule, "lunch")).toBe(0);
+  });
+
+  it("counts a gap of exactly the minimum duration", () => {
+    // Gap 11:30-12:15, exactly 45 minutes, inside the window.
+    const schedule = makeScheduleWithBlocks(
+      [
+        { day: "M", start: 630, end: 690 },
+        { day: "M", start: 735, end: 795 },
+      ],
+      { activeDays: ["M"] },
+    );
+    expect(gapsSubscore(schedule, "lunch")).toBe(1);
+  });
+
+  it("counts a gap of exactly the maximum duration", () => {
+    // Gap 11:30-13:00, exactly 90 minutes, inside the window.
+    const schedule = makeScheduleWithBlocks(
+      [
+        { day: "M", start: 630, end: 690 },
+        { day: "M", start: 780, end: 840 },
+      ],
+      { activeDays: ["M"] },
+    );
+    expect(gapsSubscore(schedule, "lunch")).toBe(1);
   });
 
   it("scores the fraction of active days that qualify", () => {
