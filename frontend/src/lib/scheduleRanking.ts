@@ -265,5 +265,6 @@ export function buildChips(
     if (closed > 0) cautions.push({ label: `${closed} closed`, tone: "caution" });
   }
 
-  return [...positive, ...cautions].slice(0, MAX_CHIPS);
+  const room = Math.max(0, MAX_CHIPS - cautions.length);
+  return [...positive.slice(0, room), ...cautions];
 }

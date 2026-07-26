@@ -450,6 +450,34 @@ describe("buildChips", () => {
     expect(chips.some((c) => c.label === "2 closed" && c.tone === "caution")).toBe(true);
   });
 
+  it("keeps every caution chip even when positives would fill the list", () => {
+    const schedule = makeSchedule({
+      earliestStart: "10:00",
+      daysOff: ["T"],
+      groups: [
+        {
+          sections: [
+            { status: "Waitlisted", blocks: [] },
+            { status: "Closed", blocks: [] },
+          ],
+        },
+      ],
+    } as unknown as Partial<GeneratedSchedule>);
+
+    const chips = buildChips(
+      schedule,
+      { start: 1, days: 1, gaps: 1, availability: 0.5 },
+      { ...basePrefs, gapMode: "tight" },
+    );
+
+    expect(chips).toHaveLength(4);
+    expect(chips.filter((c) => c.tone === "caution").map((c) => c.label)).toEqual([
+      "1 waitlisted",
+      "1 closed",
+    ]);
+    expect(chips.filter((c) => c.tone === "positive")).toHaveLength(2);
+  });
+
   it("returns at most four chips and puts cautions last", () => {
     const schedule = makeSchedule({
       earliestStart: "10:00",
