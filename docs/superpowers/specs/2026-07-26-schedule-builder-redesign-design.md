@@ -26,6 +26,22 @@ choose among them. Specifically:
 Rank valid schedules against student-stated preferences, lead with a best pick,
 justify why it won, and give the student what they need to register.
 
+### Ranking never removes options
+
+No control in this design filters combinations out of the result set. Every
+preference expresses itself as rank position only. A student can always reach
+any schedule the generator produced, including one composed entirely of closed
+sections.
+
+Rationale: a filtered result is invisible and therefore unexplainable. The
+student cannot distinguish "no such schedule exists" from "a schedule existed
+and was silently discarded", and the second case destroys trust in the tool.
+Enrollment status also moves constantly during registration, so a section that
+is closed this morning may open this afternoon.
+
+This is an invariant, not a default. Any future control that would hide a
+combination violates it.
+
 ## Non-Goals
 
 - Blocked-time windows (marking work shifts or practice as unavailable).
@@ -76,8 +92,9 @@ end as minutes from midnight (confirmed in `backend/utils/generator.js`).
 **Availability.** Per section: Open scores 1.0, Waitlisted 0.5, Closed 0.0.
 `availabilityScore` is the mean across all sections in the combination.
 
-When the "Open sections only" checkbox is enabled, combinations containing any
-non-Open section are filtered out entirely rather than scored down.
+The "Prioritize open sections" control raises the raw weight of this component.
+It never removes anything: a combination containing closed sections sinks in
+the ranking but stays reachable through the pager.
 
 ### Weight normalization
 
@@ -97,7 +114,7 @@ must be explicit:
 | Start after | Threshold | Sets `T` in the start-time subscore |
 | Days on campus | Importance | Sets the raw weight of the days component |
 | Between classes | Mode | Selects `tight`, `lunch`, or `none` |
-| Open sections only | Filter | Removes non-Open combinations before scoring |
+| Prioritize open sections | Importance | Raises the raw weight of the availability component |
 
 The start-time control is the only one that sets a threshold. The days control
 sets importance only, because "fewer days" has no meaningful cutoff value the
@@ -174,7 +191,8 @@ Two columns: a fixed left rail of roughly 300px and a fluid main area.
 - Selected courses as removable chips, plus an add-course affordance that
   expands the search inline.
 - Preferences: three preset buttons, then the individual levers (start time,
-  days on campus, gap mode as a three-way radio, open-sections-only checkbox).
+  days on campus, gap mode as a three-way radio, prioritize-open-sections
+  toggle).
 
 **Main area**, top to bottom:
 - Result header: rank position, score, explanation chips, and a pager reading
@@ -246,7 +264,10 @@ Cases to cover:
 - Lunch mode: qualifying gap, gap too short, gap too long, gap outside the
   11:00-14:00 window.
 - Weight redistribution when gap mode is `none`.
-- Availability: all open, mixed, and the open-only filter removing combinations.
+- Availability: all open, mixed, and all closed.
+- The no-removal invariant: for any preference configuration, the ranked output
+  contains exactly the same set of combinations as the input, reordered. This
+  is the single most important test in the suite.
 - Tie-breaking order.
 - Preset application producing expected weights and threshold.
 
