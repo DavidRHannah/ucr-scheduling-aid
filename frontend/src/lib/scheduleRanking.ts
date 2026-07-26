@@ -32,3 +32,64 @@ export function startSubscore(schedule: GeneratedSchedule, thresholdMinutes: num
 export function daysSubscore(schedule: GeneratedSchedule): number {
   return clamp01((5 - schedule.activeDays.length) / 4);
 }
+
+/** Weekly dead time at or beyond which the tight-gap subscore bottoms out. */
+const TIGHT_GAP_CAP_MINUTES = 600;
+
+/** A midday break must last at least this long to count. */
+const LUNCH_MIN_MINUTES = 45;
+/** A break longer than this stops being a lunch break and becomes dead time. */
+const LUNCH_MAX_MINUTES = 90;
+/** The window a qualifying break must overlap: 11:00 to 14:00. */
+const LUNCH_WINDOW_START = 11 * 60;
+const LUNCH_WINDOW_END = 14 * 60;
+
+export type GapMode = "tight" | "lunch" | "none";
+
+export interface ScheduleBlock {
+  day: string;
+  start: number;
+  end: number;
+}
+
+export function collectBlocks(schedule: GeneratedSchedule): ScheduleBlock[] {
+  return schedule.groups.flatMap((group) =>
+    group.sections.flatMap((section) => section.blocks ?? []),
+  );
+}
+
+/** True when the day contains a break of lunch length overlapping the midday window. */
+function dayHasLunchGap(blocks: ScheduleBlock[]): boolean {
+  const sorted = [...blocks].sort((a, b) => a.start - b.start);
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gapStart = sorted[i].end;
+    const gapEnd = sorted[i + 1].start;
+    const duration = gapEnd - gapStart;
+    if (duration < LUNCH_MIN_MINUTES || duration > LUNCH_MAX_MINUTES) continue;
+    if (gapStart < LUNCH_WINDOW_END && gapEnd > LUNCH_WINDOW_START) return true;
+  }
+  return false;
+}
+
+export function gapsSubscore(schedule: GeneratedSchedule, mode: GapMode): number {
+  if (mode === "none") return 1;
+  if (isFullyAsync(schedule)) return 1;
+
+  if (mode === "tight") {
+    return clamp01(1 - schedule.totalGapMinutes / TIGHT_GAP_CAP_MINUTES);
+  }
+
+  const blocks = collectBlocks(schedule);
+  const byDay = new Map<string, ScheduleBlock[]>();
+  for (const block of blocks) {
+    const existing = byDay.get(block.day);
+    if (existing) existing.push(block);
+    else byDay.set(block.day, [block]);
+  }
+
+  const qualifying = schedule.activeDays.filter((day) =>
+    dayHasLunchGap(byDay.get(day) ?? []),
+  ).length;
+
+  return clamp01(qualifying / schedule.activeDays.length);
+}
