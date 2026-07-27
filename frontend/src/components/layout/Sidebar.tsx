@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   CalendarRange,
@@ -5,6 +6,8 @@ import {
   Bookmark,
   Settings as SettingsIcon,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -15,14 +18,43 @@ const navItems = [
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
+const COLLAPSED_STORAGE_KEY = "sidebar-collapsed";
+
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(
+    () => window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === "true",
+  );
+
+  useEffect(() => {
+    window.localStorage.setItem(COLLAPSED_STORAGE_KEY, String(isCollapsed));
+  }, [isCollapsed]);
 
   return (
-    <aside className="flex h-screen w-[260px] flex-shrink-0 flex-col bg-[#003DA5] text-white">
-      <div className="px-6 py-6">
-        <div className="text-lg font-bold leading-tight">UCR</div>
-        <div className="text-sm font-semibold tracking-wide text-blue-200">SCHEDULING AID</div>
+    <aside
+      className={`flex h-screen flex-col bg-[#003DA5] text-white transition-[width] duration-200 ${
+        isCollapsed ? "w-16" : "w-[260px]"
+      }`}
+    >
+      <div
+        className={`flex items-center px-3 py-6 ${isCollapsed ? "justify-center" : "justify-between"}`}
+      >
+        {!isCollapsed && (
+          <div>
+            <div className="text-lg font-bold leading-tight">UCR</div>
+            <div className="text-sm font-semibold tracking-wide text-blue-200">
+              SCHEDULING AID
+            </div>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setIsCollapsed((prev) => !prev)}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-md text-blue-100 hover:bg-blue-900/40"
+        >
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
@@ -32,13 +64,13 @@ export function Sidebar() {
             to={to}
             end={to === "/"}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                isActive ? "bg-white text-[#003DA5]" : "text-blue-100 hover:bg-blue-900/40"
-              }`
+              `flex items-center rounded-md py-2 text-sm font-medium transition-colors ${
+                isCollapsed ? "justify-center px-2" : "gap-3 px-3"
+              } ${isActive ? "bg-white text-[#003DA5]" : "text-blue-100 hover:bg-blue-900/40"}`
             }
           >
-            <Icon className="h-4 w-4" />
-            {label}
+            <Icon className="h-4 w-4 flex-shrink-0" />
+            {!isCollapsed && label}
           </NavLink>
         ))}
       </nav>
@@ -48,22 +80,15 @@ export function Sidebar() {
           <button
             type="button"
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-blue-100 hover:bg-blue-900/40 cursor-pointer"
+            className={`flex w-full items-center rounded-md py-2 text-sm font-medium text-blue-100 hover:bg-blue-900/40 cursor-pointer ${
+              isCollapsed ? "justify-center px-2" : "gap-3 px-3"
+            }`}
           >
-            <LogOut className="h-4 w-4" />
-            Sign Out
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            {!isCollapsed && "Sign Out"}
           </button>
         </div>
       )}
-
-      <div className="m-3 rounded-md bg-blue-900/40 p-3 text-xs text-blue-100">
-        <div className="mb-1 flex items-center gap-2 font-semibold text-white">
-          <span className="h-2 w-2 rounded-full bg-green-400" />
-          System Active
-        </div>
-        <div>UCR Spring 2026 Catalog</div>
-        <div>Version 1.0.0</div>
-      </div>
     </aside>
   );
 }
