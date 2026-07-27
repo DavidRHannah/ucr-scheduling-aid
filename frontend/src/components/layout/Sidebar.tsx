@@ -19,7 +19,7 @@ export function Sidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="flex h-screen flex-col bg-[#003DA5] text-white">
+    <aside className="flex h-screen w-[260px] flex-shrink-0 flex-col bg-[#003DA5] text-white">
       <div className="px-6 py-6">
         <div className="text-lg font-bold leading-tight">UCR</div>
         <div className="text-sm font-semibold tracking-wide text-blue-200">SCHEDULING AID</div>
