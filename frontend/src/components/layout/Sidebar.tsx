@@ -32,7 +32,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`flex h-screen flex-col bg-[#003DA5] text-white transition-[width] duration-200 ${
+      className={`flex h-screen flex-col bg-[#003DA5] text-white flex-shrink-0 transition-[width] duration-200 ${
         isCollapsed ? "w-16" : "w-[260px]"
       }`}
     >
@@ -63,6 +63,7 @@ export function Sidebar() {
             key={to}
             to={to}
             end={to === "/"}
+            aria-label={isCollapsed ? label : undefined}
             className={({ isActive }) =>
               `flex items-center rounded-md py-2 text-sm font-medium transition-colors ${
                 isCollapsed ? "justify-center px-2" : "gap-3 px-3"
@@ -80,6 +81,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={logout}
+            aria-label={isCollapsed ? "Sign Out" : undefined}
             className={`flex w-full items-center rounded-md py-2 text-sm font-medium text-blue-100 hover:bg-blue-900/40 cursor-pointer ${
               isCollapsed ? "justify-center px-2" : "gap-3 px-3"
             }`}
