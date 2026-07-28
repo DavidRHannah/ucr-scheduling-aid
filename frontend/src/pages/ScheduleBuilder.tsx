@@ -15,6 +15,7 @@ import { ScheduleSectionTable } from "@/components/schedule/ScheduleSectionTable
 import { ScheduleActionBar } from "@/components/schedule/ScheduleActionBar";
 import { NoResultsPanel } from "@/components/schedule/NoResultsPanel";
 import { SaveStatusBanner } from "@/components/schedule/SaveStatusBanner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /** Wait this long after a course or pin change before regenerating. */
 const GENERATE_DEBOUNCE_MS = 400;
@@ -181,20 +182,7 @@ export default function ScheduleBuilder() {
   const activeTermLabel = termCode === "202620" ? "Spring 2026" : "Fall 2025";
 
   return (
-    <div className="grid h-full grid-cols-1 lg:grid-cols-[300px_1fr]">
-      <aside className="space-y-6 overflow-y-auto border-r border-gray-200 bg-white p-4">
-        <CoursePickerRail
-          selectedCourses={selectedCourses}
-          onAddCourse={handleAddCourse}
-          onRemoveCourse={handleRemoveCourse}
-        />
-        {selectedCourses.length > 0 && (
-          <div className="border-t border-gray-100 pt-4">
-            <SchedulePreferences preferences={preferences} onChange={setPreferences} />
-          </div>
-        )}
-      </aside>
-
+    <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_300px]">
       <main className="space-y-5 overflow-y-auto p-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Schedule Builder</h1>
@@ -260,6 +248,25 @@ export default function ScheduleBuilder() {
           </>
         )}
       </main>
+
+      <aside className="overflow-y-auto border-l border-gray-200 bg-white p-4">
+        <Tabs defaultValue="courses">
+          <TabsList className="w-full">
+            <TabsTrigger value="courses">Courses</TabsTrigger>
+            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          </TabsList>
+          <TabsContent value="courses" className="mt-4">
+            <CoursePickerRail
+              selectedCourses={selectedCourses}
+              onAddCourse={handleAddCourse}
+              onRemoveCourse={handleRemoveCourse}
+            />
+          </TabsContent>
+          <TabsContent value="preferences" className="mt-4">
+            <SchedulePreferences preferences={preferences} onChange={setPreferences} />
+          </TabsContent>
+        </Tabs>
+      </aside>
     </div>
   );
 }

@@ -33,13 +33,6 @@ export function SchedulePreferences({ preferences, onChange }: SchedulePreferenc
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900">Preferences</h2>
-        <p className="mt-1 text-xs text-gray-400">
-          Reorders results instantly. Nothing is ever hidden.
-        </p>
-      </div>
-
       <div className="flex flex-wrap gap-2">
         {presetNames.map((name) => (
           <Button

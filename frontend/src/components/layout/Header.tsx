@@ -26,7 +26,7 @@ export function Header() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8">
-      <Select value={term} onValueChange={(value) => value && setTerm(value)}>
+      <Select items={terms} value={term} onValueChange={(value) => value && setTerm(value)}>
         <SelectTrigger className="w-40 border-none text-lg font-semibold shadow-none cursor-pointer">
           <SelectValue />
         </SelectTrigger>

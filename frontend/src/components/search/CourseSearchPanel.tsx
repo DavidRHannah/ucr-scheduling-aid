@@ -2,44 +2,21 @@ import { useEffect, useState } from "react";
 import { Search, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { api, type CourseInfo } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-
-const ALL = "all";
-
-const departments = [
-  { value: ALL, label: "All Departments" },
-  { value: "CS", label: "Computer Science" },
-  { value: "MATH", label: "Mathematics" },
-  { value: "PHYS", label: "Physics" },
-  { value: "STAT", label: "Statistics" },
-  { value: "ENGL", label: "English" }
-];
 
 interface CourseSearchPanelProps {
   selectedCourses: CourseInfo[];
   onAddCourse: (course: CourseInfo) => void;
   onRemoveCourse: (id: string) => void;
-  onGenerate: () => void;
-  isGenerating: boolean;
 }
 
 export function CourseSearchPanel({
   selectedCourses,
   onAddCourse,
   onRemoveCourse,
-  onGenerate,
-  isGenerating,
 }: CourseSearchPanelProps) {
   const [query, setQuery] = useState("");
-  const [department, setDepartment] = useState(ALL);
   const [courses, setCourses] = useState<CourseInfo[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
@@ -51,7 +28,6 @@ export function CourseSearchPanel({
         page: 1,
         limit: 15,
         search: query,
-        subject: department
       });
       setCourses(res.courses || []);
     } catch (err) {
@@ -63,13 +39,13 @@ export function CourseSearchPanel({
 
   useEffect(() => {
     handleSearch();
-  }, [department]);
+  }, []);
 
   return (
-    <div className="flex h-full flex-col gap-4 border-l border-gray-200 bg-white p-4">
+    <div className="flex flex-col gap-4">
       {/* Selected Courses Basket */}
       <div>
-        <h2 className="text-md font-bold text-gray-900 mb-2">Selected Course Cart</h2>
+        <h2 className="text-md font-bold text-gray-900 mb-2">My Courses</h2>
         <div className="min-h-[80px] rounded-lg border border-dashed border-gray-200 bg-gray-50/50 p-2">
           {selectedCourses.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -87,18 +63,10 @@ export function CourseSearchPanel({
             </div>
           ) : (
             <div className="text-center text-xs text-gray-400 py-6">
-              Cart is empty. Search and add courses below.
+              Search and add courses below.
             </div>
           )}
         </div>
-
-        <Button
-          disabled={selectedCourses.length === 0 || isGenerating}
-          onClick={onGenerate}
-          className="w-full mt-3"
-        >
-          {isGenerating ? "Computing Schedules..." : "Generate Combinations"}
-        </Button>
       </div>
 
       <hr className="border-gray-100" />
@@ -115,22 +83,6 @@ export function CourseSearchPanel({
             onChange={(e) => setQuery(e.target.value)}
           />
         </form>
-
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Department</label>
-          <Select value={department} onValueChange={(value) => value && setDepartment(value)}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {departments.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* Search Results List */}
