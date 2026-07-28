@@ -1,23 +1,7 @@
 import { Pin, PinOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Section } from "@/lib/api";
-
-const DAY_LABELS: Record<string, string> = {
-  M: "Mon",
-  T: "Tue",
-  W: "Wed",
-  R: "Thu",
-  F: "Fri",
-  S: "Sat",
-  U: "Sun",
-};
-
-function formatMeeting(section: Section): string {
-  const meeting = section.meetingTimes[0];
-  if (!meeting || meeting.weekDays.length === 0) return "Asynchronous";
-  const days = meeting.weekDays.map((day) => DAY_LABELS[day] ?? day).join("/");
-  return `${days} ${meeting.startTime} - ${meeting.endTime}`;
-}
+import { formatMeeting } from "@/lib/meetingTimes";
 
 function statusClasses(status: Section["status"]): string {
   if (status === "Open") return "bg-green-50 text-green-700";

@@ -1,4 +1,5 @@
 import type { Section } from "@/lib/api";
+import { formatMeetingDays } from "@/lib/meetingTimes";
 
 interface SectionOfferingCardProps {
   section: Section;
@@ -16,7 +17,7 @@ function SectionOfferingCard({ section }: SectionOfferingCardProps) {
       <div className="mt-1 text-sm text-gray-700">
         {section.meetingTimes.map((m, mIdx) => (
           <div key={mIdx}>
-            {m.weekDays.join("/")} {m.startTime} - {m.endTime}{" "}
+            {formatMeetingDays(m.weekDays)} {m.startTime} - {m.endTime}{" "}
             {m.buildingDescription && `(${m.buildingDescription} ${m.room})`}
           </div>
         ))}
