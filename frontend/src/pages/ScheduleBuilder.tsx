@@ -9,7 +9,8 @@ import { useScheduleRanking } from "@/hooks/useScheduleRanking";
 import { WeeklyCalendar } from "@/components/schedule/WeeklyCalendar";
 import { AsyncSectionTray } from "@/components/schedule/AsyncSectionTray";
 import { SchedulePreferences } from "@/components/schedule/SchedulePreferences";
-import { CoursePickerRail } from "@/components/schedule/CoursePickerRail";
+import { CourseSearchPanel } from "@/components/search/CourseSearchPanel";
+import { CourseDetailSheet } from "@/components/schedule/CourseDetailSheet";
 import { RankedResultHeader } from "@/components/schedule/RankedResultHeader";
 import { AlternativesStrip } from "@/components/schedule/AlternativesStrip";
 import { ScheduleSectionTable } from "@/components/schedule/ScheduleSectionTable";
@@ -32,6 +33,7 @@ export default function ScheduleBuilder() {
   const [nearMisses, setNearMisses] = useState<GeneratedSchedule[]>([]);
   const [preferences, setPreferences] = useState<RankingPreferences>(DEFAULT_PREFERENCES);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [detailCourse, setDetailCourse] = useState<CourseInfo | null>(null);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -129,6 +131,7 @@ export default function ScheduleBuilder() {
     setHasGenerated(false);
     setSaveSuccess("");
     setSaveError("");
+    setDetailCourse(null);
   }, [termCode]);
 
   const handleAddCourse = (course: CourseInfo) => {
@@ -257,10 +260,11 @@ export default function ScheduleBuilder() {
             <TabsTrigger value="preferences">Preferences</TabsTrigger>
           </TabsList>
           <TabsContent value="courses" className="mt-4">
-            <CoursePickerRail
+            <CourseSearchPanel
               selectedCourses={selectedCourses}
               onAddCourse={handleAddCourse}
               onRemoveCourse={handleRemoveCourse}
+              onSelectCourse={setDetailCourse}
             />
           </TabsContent>
           <TabsContent value="preferences" className="mt-4">
@@ -268,6 +272,17 @@ export default function ScheduleBuilder() {
           </TabsContent>
         </Tabs>
       </aside>
+
+      <CourseDetailSheet
+        course={detailCourse}
+        termCode={termCode}
+        isAdded={selectedCourses.some((c) => c._id === detailCourse?._id)}
+        pinnedSections={pinnedSections}
+        onClose={() => setDetailCourse(null)}
+        onAddCourse={handleAddCourse}
+        onRemoveCourse={handleRemoveCourse}
+        onTogglePin={handleTogglePin}
+      />
     </div>
   );
 }
