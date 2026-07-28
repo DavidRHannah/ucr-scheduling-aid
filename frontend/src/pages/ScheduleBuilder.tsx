@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTerm } from "@/context/TermContext";
 import { api, type CourseInfo, type GeneratedSchedule, type Section } from "@/lib/api";
 import { DEFAULT_PREFERENCES, type RankingPreferences } from "@/lib/scheduleRanking";
+import { getTermLabel } from "@/lib/terms";
 import { useScheduleRanking } from "@/hooks/useScheduleRanking";
 import { WeeklyCalendar } from "@/components/schedule/WeeklyCalendar";
 import { AsyncSectionTray } from "@/components/schedule/AsyncSectionTray";
@@ -179,7 +180,7 @@ export default function ScheduleBuilder() {
     }
   };
 
-  const activeTermLabel = termCode === "202620" ? "Spring 2026" : "Fall 2025";
+  const activeTermLabel = getTermLabel(termCode);
 
   return (
     <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_300px]">

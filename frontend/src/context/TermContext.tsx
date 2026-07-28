@@ -1,14 +1,8 @@
 import React, { createContext, useContext, useState } from "react";
+import { AVAILABLE_TERMS, type Term } from "@/lib/terms";
 
-export interface Term {
-  value: string;
-  label: string;
-}
-
-export const AVAILABLE_TERMS: Term[] = [
-  { value: "202620", label: "Spring 2026" },
-  { value: "202610", label: "Fall 2025" }
-];
+export { AVAILABLE_TERMS };
+export type { Term };
 
 interface TermContextType {
   term: string;

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTerm } from "@/context/TermContext";
 import { api, type CourseInfo, type Section, type PrerequisiteGroup } from "@/lib/api";
+import { getTermLabel } from "@/lib/terms";
 import { Button } from "@/components/ui/button";
 import { CatalogSearchForm } from "@/components/catalog/CatalogSearchForm";
 import { CourseListItem } from "@/components/catalog/CourseListItem";
@@ -130,7 +131,7 @@ export default function CourseSearchPage() {
         prereqGroups={prereqGroups}
         sections={sections}
         loading={detailLoading}
-        sectionTermLabel="Spring 2026"
+        sectionTermLabel={getTermLabel(termCode)}
         onAddToBuilder={(course) => navigate(`/?addCourseId=${course._id}`)}
       />
     </div>
