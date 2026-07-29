@@ -277,6 +277,8 @@ export default function ScheduleBuilder() {
       hideWaitlistedSections: false,
     }));
 
+  const handleResetPreferences = () => setPreferences(DEFAULT_PREFERENCES);
+
   const handleSaveNew = async () => {
     if (!current) return;
     const wasEditing = editingScheduleId !== null;
@@ -329,7 +331,7 @@ export default function ScheduleBuilder() {
   const activeTermLabel = getTermLabel(termCode);
 
   return (
-    <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_300px]">
+    <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_340px]">
       <main className="space-y-5 overflow-y-auto p-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Schedule Builder</h1>
@@ -440,7 +442,13 @@ export default function ScheduleBuilder() {
             />
           </TabsContent>
           <TabsContent value="preferences" className="mt-4">
-            <SchedulePreferences preferences={preferences} onChange={setPreferences} />
+            <SchedulePreferences
+              preferences={preferences}
+              onChange={setPreferences}
+              visibleCount={ranked.length}
+              hiddenCount={combinations.length - ranked.length}
+              onReset={handleResetPreferences}
+            />
           </TabsContent>
         </Tabs>
       </aside>
