@@ -198,8 +198,7 @@ const formatSchedule = (sectionsList) => {
   const groupsMap = {};
 
   sectionsList.forEach(sec => {
-    const cId = sec.courseId._id.toString();
-    totalUnits += sec.creditHours;
+    const cId = sec.courseId._id ? sec.courseId._id.toString() : sec.courseId.toString();
 
     if (!groupsMap[cId]) {
       groupsMap[cId] = {
@@ -234,6 +233,17 @@ const formatSchedule = (sectionsList) => {
       ...sec,
       blocks
     });
+  });
+
+  // Calculate totalUnits per unique course instead of summing per section
+  Object.values(groupsMap).forEach(group => {
+    let units = 0;
+    if (group.creditHours && typeof group.creditHours.low === 'number') {
+      units = group.creditHours.low;
+    } else {
+      units = Math.max(...group.sections.map(s => s.creditHours || 0), 0);
+    }
+    totalUnits += units;
   });
 
   // Calculate gaps

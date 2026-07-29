@@ -353,8 +353,7 @@ export default function ScheduleBuilder() {
           <div className="rounded-lg border border-dashed border-gray-300 p-10 text-center">
             <h2 className="font-semibold text-gray-900">Add courses to get started</h2>
             <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
-              Pick the courses you need this term. Every conflict-free schedule is generated and
-              ranked against your preferences.
+              Pick the courses you need this term. Every schedule is ranked against your preferences.
             </p>
           </div>
         )}

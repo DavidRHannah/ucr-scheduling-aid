@@ -89,7 +89,7 @@ export function SchedulePreferences({
       <section className="space-y-3">
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">Ranking</h3>
-          <p className="text-xs text-gray-400">Reorders results, never removes any.</p>
+          <p className="text-xs text-gray-400">Reorders results.</p>
         </div>
 
         <OptionGroup
@@ -117,7 +117,7 @@ export function SchedulePreferences({
       <section className="space-y-2 border-t border-gray-100 pt-4">
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">Filters</h3>
-          <p className="text-xs text-gray-400">Remove schedules from the list.</p>
+          <p className="text-xs text-gray-400">Removes schedules from list.</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export function SchedulePreferences({
             }
           />
           <label htmlFor="hide-closed" className="cursor-pointer text-sm text-gray-700">
-            Hide schedules with closed sections
+            Hide closed sections
           </label>
         </div>
 
@@ -142,13 +142,9 @@ export function SchedulePreferences({
             }
           />
           <label htmlFor="hide-waitlisted" className="cursor-pointer text-sm text-gray-700">
-            Hide schedules with waitlisted sections
+            Hide waitlisted sections
           </label>
         </div>
-
-        <p className="text-xs text-gray-400">
-          Sections you&apos;ve pinned yourself are never hidden by these.
-        </p>
       </section>
     </div>
   );

@@ -221,16 +221,26 @@ export const analyzeSchedule = async (req, res) => {
 
     const sections = schedule.sectionIds;
 
-    let totalUnits = 0;
     let totalClassMinutes = 0;
     let earliestStart = 24 * 60;
     let latestEnd = 0;
     const activeDaysSet = new Set();
     const daysEvents = { M: [], T: [], W: [], R: [], F: [], S: [], U: [] };
     const conflicts = [];
+    const courseGroupsMap = {};
 
     sections.forEach((sec, sIdx) => {
-      totalUnits += sec.creditHours;
+      const cId = sec.courseId?._id
+        ? sec.courseId._id.toString()
+        : `${sec.subject}_${sec.courseNumber}`;
+
+      if (!courseGroupsMap[cId]) {
+        courseGroupsMap[cId] = {
+          creditHours: sec.courseId?.creditHours,
+          sections: []
+        };
+      }
+      courseGroupsMap[cId].sections.push(sec);
 
       sec.meetingTimes.forEach(meet => {
         const start = toMinutes(meet.startTime);
@@ -258,6 +268,17 @@ export const analyzeSchedule = async (req, res) => {
           });
         }
       }
+    });
+
+    let totalUnits = 0;
+    Object.values(courseGroupsMap).forEach(group => {
+      let units = 0;
+      if (group.creditHours && typeof group.creditHours.low === 'number') {
+        units = group.creditHours.low;
+      } else {
+        units = Math.max(...group.sections.map(s => s.creditHours || 0), 0);
+      }
+      totalUnits += units;
     });
 
     // Gap computation
