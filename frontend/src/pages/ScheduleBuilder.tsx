@@ -5,6 +5,12 @@ import { useTerm } from "@/context/TermContext";
 import { api, type CourseInfo, type GeneratedSchedule, type Section } from "@/lib/api";
 import { DEFAULT_PREFERENCES, type RankingPreferences } from "@/lib/scheduleRanking";
 import { getTermLabel } from "@/lib/terms";
+import {
+  loadBuilderState,
+  saveBuilderState,
+  loadPreferences,
+  savePreferences,
+} from "@/lib/builderStorage";
 import { useScheduleRanking } from "@/hooks/useScheduleRanking";
 import { WeeklyCalendar } from "@/components/schedule/WeeklyCalendar";
 import { AsyncSectionTray } from "@/components/schedule/AsyncSectionTray";
@@ -27,11 +33,17 @@ export default function ScheduleBuilder() {
   const { term: termCode } = useTerm();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [selectedCourses, setSelectedCourses] = useState<CourseInfo[]>([]);
-  const [pinnedSections, setPinnedSections] = useState<Section[]>([]);
+  const [selectedCourses, setSelectedCourses] = useState<CourseInfo[]>(
+    () => loadBuilderState(termCode)?.courses ?? [],
+  );
+  const [pinnedSections, setPinnedSections] = useState<Section[]>(
+    () => loadBuilderState(termCode)?.pins ?? [],
+  );
   const [combinations, setCombinations] = useState<GeneratedSchedule[]>([]);
   const [nearMisses, setNearMisses] = useState<GeneratedSchedule[]>([]);
-  const [preferences, setPreferences] = useState<RankingPreferences>(DEFAULT_PREFERENCES);
+  const [preferences, setPreferences] = useState<RankingPreferences>(
+    () => loadPreferences() ?? DEFAULT_PREFERENCES,
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [detailCourse, setDetailCourse] = useState<CourseInfo | null>(null);
 
@@ -44,6 +56,19 @@ export default function ScheduleBuilder() {
 
   /** Guards against a slow earlier response overwriting a newer one. */
   const requestIdRef = useRef(0);
+
+  /**
+   * The term that selectedCourses and pinnedSections belong to. Guards the
+   * write effect from persisting one term's selection under another term's key
+   * during the render where termCode has changed but the loaded state has not
+   * committed yet. This must be state, not a ref: a ref would mutate
+   * synchronously in the load effect below and the guard would already agree
+   * with termCode by the time the write effect ran.
+   */
+  const [stateTerm, setStateTerm] = useState(termCode);
+
+  /** The lazy initializers already loaded the mount-time term. */
+  const isFirstTermRun = useRef(true);
 
   const ranked = useScheduleRanking(combinations, preferences);
   const current = ranked[selectedIndex];
@@ -122,9 +147,15 @@ export default function ScheduleBuilder() {
   }, [generate]);
 
   useEffect(() => {
+    if (isFirstTermRun.current) {
+      isFirstTermRun.current = false;
+      return;
+    }
     requestIdRef.current += 1;
-    setSelectedCourses([]);
-    setPinnedSections([]);
+    const restored = loadBuilderState(termCode);
+    setSelectedCourses(restored?.courses ?? []);
+    setPinnedSections(restored?.pins ?? []);
+    setStateTerm(termCode);
     setCombinations([]);
     setNearMisses([]);
     setSelectedIndex(0);
@@ -133,6 +164,15 @@ export default function ScheduleBuilder() {
     setSaveError("");
     setDetailCourse(null);
   }, [termCode]);
+
+  useEffect(() => {
+    if (stateTerm !== termCode) return;
+    saveBuilderState(termCode, { courses: selectedCourses, pins: pinnedSections });
+  }, [termCode, stateTerm, selectedCourses, pinnedSections]);
+
+  useEffect(() => {
+    savePreferences(preferences);
+  }, [preferences]);
 
   const handleAddCourse = (course: CourseInfo) => {
     setSelectedCourses((prev) =>
