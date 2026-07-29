@@ -148,7 +148,12 @@ const main = async () => {
     Section.find = (query) => {
       assert.strictEqual(query.courseId.toString(), '683d1a2b4f1c2d3e4f5a6b7c');
       assert.strictEqual(query.termCode, '202620');
-      return Promise.resolve([{ crn: '12345' }]);
+      return {
+        populate: (path) => {
+          assert.strictEqual(path, 'courseId');
+          return Promise.resolve([{ crn: '12345' }]);
+        }
+      };
     };
 
     const req = {
