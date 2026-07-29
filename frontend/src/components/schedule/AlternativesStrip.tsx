@@ -47,7 +47,9 @@ export function AlternativesStrip({ results, selectedIndex, onSelect }: Alternat
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-500">#{result.rank}</span>
-              <span className="text-sm font-bold text-blue-700">{result.score}</span>
+              {result.score !== null && (
+                <span className="text-sm font-bold text-blue-700">{result.score}</span>
+              )}
             </div>
             <div className="mt-1 text-xs text-gray-600">
               {result.schedule.activeDays.length} days - {result.schedule.totalUnits} units

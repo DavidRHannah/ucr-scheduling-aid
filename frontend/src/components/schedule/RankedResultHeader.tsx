@@ -36,9 +36,11 @@ export function RankedResultHeader({
           <h2 className="text-xl font-bold text-gray-900">
             {position === 1 ? "Best match" : `Option ${position}`}
           </h2>
-          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700">
-            {result.score}
-          </span>
+          {result.score !== null && (
+            <span className="rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700">
+              {result.score}
+            </span>
+          )}
           <span className="text-sm text-gray-500">{result.schedule.totalUnits} units</span>
         </div>
 
