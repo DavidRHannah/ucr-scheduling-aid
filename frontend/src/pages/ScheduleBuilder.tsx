@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTerm } from "@/context/TermContext";
@@ -73,7 +73,11 @@ export default function ScheduleBuilder() {
   /** The lazy initializers already loaded the mount-time term. */
   const isFirstTermRun = useRef(true);
 
-  const ranked = useScheduleRanking(combinations, preferences);
+  const pinnedSectionIds = useMemo(
+    () => new Set(pinnedSections.map((s) => s._id)),
+    [pinnedSections],
+  );
+  const ranked = useScheduleRanking(combinations, preferences, pinnedSectionIds);
   const current = ranked[selectedIndex];
   const currentSections = current
     ? current.schedule.groups.flatMap((group) => group.sections)
@@ -266,6 +270,13 @@ export default function ScheduleBuilder() {
 
   const handleClearPins = () => setPinnedSections([]);
 
+  const handleClearFilters = () =>
+    setPreferences((prev) => ({
+      ...prev,
+      hideClosedSections: false,
+      hideWaitlistedSections: false,
+    }));
+
   const handleSaveNew = async () => {
     if (!current) return;
     const wasEditing = editingScheduleId !== null;
@@ -356,12 +367,15 @@ export default function ScheduleBuilder() {
               </div>
             )}
 
-            {combinations.length === 0 && (
+            {ranked.length === 0 && (
               <NoResultsPanel
                 nearMisses={nearMisses}
                 isLoading={false}
                 pinnedCount={pinnedSections.length}
                 onClearPins={handleClearPins}
+                totalGenerated={combinations.length}
+                hasActiveFilters={preferences.hideClosedSections || preferences.hideWaitlistedSections}
+                onClearFilters={handleClearFilters}
               />
             )}
 

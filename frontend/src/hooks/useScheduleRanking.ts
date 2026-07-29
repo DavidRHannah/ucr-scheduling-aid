@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { GeneratedSchedule } from "@/lib/api";
 import {
   buildChips,
+  filterSchedules,
   rankSchedules,
   type ExplanationChip,
   type RankingPreferences,
@@ -15,20 +16,21 @@ export interface RankedSchedule extends ScoredSchedule {
 }
 
 /**
- * Ranks the fetched combinations. Recomputes only when the schedules or the
- * preferences change, so moving a preference slider costs no network call.
+ * Filters out schedules the active preferences hard-exclude, then ranks
+ * what's left. Recomputes only when the schedules, preferences, or pinned
+ * sections change, so moving a preference control costs no network call.
  */
 export function useScheduleRanking(
   schedules: GeneratedSchedule[],
   prefs: RankingPreferences,
+  pinnedSectionIds: Set<string>,
 ): RankedSchedule[] {
-  return useMemo(
-    () =>
-      rankSchedules(schedules, prefs).map((scored, index) => ({
-        ...scored,
-        rank: index + 1,
-        chips: buildChips(scored.schedule, scored.subscores, prefs),
-      })),
-    [schedules, prefs],
-  );
+  return useMemo(() => {
+    const filtered = filterSchedules(schedules, prefs, pinnedSectionIds);
+    return rankSchedules(filtered, prefs).map((scored, index) => ({
+      ...scored,
+      rank: index + 1,
+      chips: buildChips(scored.schedule, scored.subscores, prefs),
+    }));
+  }, [schedules, prefs, pinnedSectionIds]);
 }
