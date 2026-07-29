@@ -6,6 +6,7 @@ import { api, type CourseInfo } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 
 interface CourseSearchPanelProps {
+  termCode: string;
   selectedCourses: CourseInfo[];
   onAddCourse: (course: CourseInfo) => void;
   onRemoveCourse: (id: string) => void;
@@ -13,6 +14,7 @@ interface CourseSearchPanelProps {
 }
 
 export function CourseSearchPanel({
+  termCode,
   selectedCourses,
   onAddCourse,
   onRemoveCourse,
@@ -39,9 +41,12 @@ export function CourseSearchPanel({
     }
   };
 
+  // Re-runs the current query whenever the active term changes, so results
+  // never describe a term the user has already navigated away from.
   useEffect(() => {
     handleSearch();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [termCode]);
 
   return (
     <div className="flex flex-col gap-4">

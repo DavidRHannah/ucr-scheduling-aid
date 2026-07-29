@@ -261,6 +261,7 @@ export default function ScheduleBuilder() {
           </TabsList>
           <TabsContent value="courses" className="mt-4">
             <CourseSearchPanel
+              termCode={termCode}
               selectedCourses={selectedCourses}
               onAddCourse={handleAddCourse}
               onRemoveCourse={handleRemoveCourse}
