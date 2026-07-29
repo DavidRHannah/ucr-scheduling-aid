@@ -1,4 +1,5 @@
 import type { GeneratedSchedule, Section } from "@/lib/api";
+import type { WeekDay } from "@/lib/calendarLayout";
 
 /** Start-time penalty reaches zero this many minutes before the threshold. */
 const START_PENALTY_WINDOW_MINUTES = 180;
@@ -29,81 +30,47 @@ export function startSubscore(schedule: GeneratedSchedule, thresholdMinutes: num
   return clamp01(1 - (thresholdMinutes - earliest) / START_PENALTY_WINDOW_MINUTES);
 }
 
-export function daysSubscore(schedule: GeneratedSchedule): number {
-  return clamp01((5 - schedule.activeDays.length) / 4);
+/**
+ * Scores how well a schedule's active days fit inside the student's
+ * preferred day set. An empty preference means "no preference" and always
+ * scores 1. A schedule that has to use days outside the preferred set is
+ * penalized in proportion to what fraction of its active days that is --
+ * it is never excluded outright, since a locked course may only offer a
+ * section on a day outside the preference and that schedule may be the
+ * only option.
+ */
+export function daysSubscore(schedule: GeneratedSchedule, preferredDays: WeekDay[]): number {
+  if (preferredDays.length === 0) return 1;
+  if (isFullyAsync(schedule)) return 1;
+  const outside = schedule.activeDays.filter(
+    (day) => !preferredDays.includes(day as WeekDay),
+  ).length;
+  return clamp01(1 - outside / schedule.activeDays.length);
 }
 
 /** Weekly dead time at or beyond which the tight-gap subscore bottoms out. */
 const TIGHT_GAP_CAP_MINUTES = 600;
 
-/** A midday break must last at least this long to count. */
-const LUNCH_MIN_MINUTES = 45;
-/** A break longer than this stops being a lunch break and becomes dead time. */
-const LUNCH_MAX_MINUTES = 90;
-/** The window a qualifying break must overlap: 11:00 to 14:00. */
-const LUNCH_WINDOW_START = 11 * 60;
-const LUNCH_WINDOW_END = 14 * 60;
-
-export type GapMode = "tight" | "lunch" | "none";
-
-export interface ScheduleBlock {
-  day: string;
-  start: number;
-  end: number;
-}
-
-export function collectBlocks(schedule: GeneratedSchedule): ScheduleBlock[] {
-  return schedule.groups.flatMap((group) =>
-    group.sections.flatMap((section) => section.blocks ?? []),
-  );
-}
-
-/** True when the day contains a break of lunch length overlapping the midday window. */
-function dayHasLunchGap(blocks: ScheduleBlock[]): boolean {
-  const sorted = [...blocks].sort((a, b) => a.start - b.start);
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const gapStart = sorted[i].end;
-    const gapEnd = sorted[i + 1].start;
-    const duration = gapEnd - gapStart;
-    if (duration < LUNCH_MIN_MINUTES || duration > LUNCH_MAX_MINUTES) continue;
-    if (gapStart < LUNCH_WINDOW_END && gapEnd > LUNCH_WINDOW_START) return true;
-  }
-  return false;
-}
+export type GapMode = "tight" | "none";
 
 export function gapsSubscore(schedule: GeneratedSchedule, mode: GapMode): number {
   if (mode === "none") return 1;
   if (isFullyAsync(schedule)) return 1;
-
-  if (mode === "tight") {
-    return clamp01(1 - schedule.totalGapMinutes / TIGHT_GAP_CAP_MINUTES);
-  }
-
-  const blocks = collectBlocks(schedule);
-  const byDay = new Map<string, ScheduleBlock[]>();
-  for (const block of blocks) {
-    const existing = byDay.get(block.day);
-    if (existing) existing.push(block);
-    else byDay.set(block.day, [block]);
-  }
-
-  const qualifying = schedule.activeDays.filter((day) =>
-    dayHasLunchGap(byDay.get(day) ?? []),
-  ).length;
-
-  return clamp01(qualifying / schedule.activeDays.length);
+  return clamp01(1 - schedule.totalGapMinutes / TIGHT_GAP_CAP_MINUTES);
 }
 
 export interface RankingWeights {
   start: number;
   days: number;
   gaps: number;
-  availability: number;
 }
 
 export interface RankingPreferences {
   startThresholdMinutes: number;
   gapMode: GapMode;
+  preferredDays: WeekDay[];
+  hideClosedSections: boolean;
+  hideWaitlistedSections: boolean;
   weights: RankingWeights;
 }
 
@@ -137,28 +104,60 @@ export function availabilitySubscore(schedule: GeneratedSchedule): number {
 }
 
 /**
- * Weights are stored as raw importances and normalized here, so presets and
- * arbitrary user edits obey one rule. The "none" gap mode is a special case of
- * the same rule: its weight drops to zero and the remainder renormalizes.
+ * Excludes schedules containing a Closed or Waitlisted section, per the
+ * active filter toggles. A section in pinnedSectionIds is exempt: the
+ * student explicitly locked it in, so it should never be the reason a
+ * schedule disappears -- otherwise a single pinned Closed section (e.g. one
+ * the student is already enrolled in) would zero out every result, since
+ * the generator forces it into every combination.
+ *
+ * This is a real filter, not a ranking signal -- unlike rankSchedules, it
+ * is allowed to drop schedules and does.
  */
-export function normalizeWeights(weights: RankingWeights, gapMode: GapMode): RankingWeights {
+export function filterSchedules(
+  schedules: GeneratedSchedule[],
+  prefs: Pick<RankingPreferences, "hideClosedSections" | "hideWaitlistedSections">,
+  pinnedSectionIds: Set<string>,
+): GeneratedSchedule[] {
+  if (!prefs.hideClosedSections && !prefs.hideWaitlistedSections) {
+    return schedules;
+  }
+  return schedules.filter((schedule) =>
+    collectSections(schedule).every((section) => {
+      if (pinnedSectionIds.has(section._id)) return true;
+      if (prefs.hideClosedSections && section.status === "Closed") return false;
+      if (prefs.hideWaitlistedSections && section.status === "Waitlisted") return false;
+      return true;
+    }),
+  );
+}
+
+/**
+ * Weights are stored as raw importances and normalized here, so presets and
+ * arbitrary user edits obey one rule. "none" gap mode and an empty preferred
+ * day set are both special cases of the same rule: the corresponding
+ * weight drops to zero and the remainder renormalizes.
+ */
+export function normalizeWeights(
+  weights: RankingWeights,
+  gapMode: GapMode,
+  hasPreferredDays: boolean,
+): RankingWeights {
   const effective: RankingWeights = {
     start: Math.max(0, weights.start),
-    days: Math.max(0, weights.days),
+    days: hasPreferredDays ? Math.max(0, weights.days) : 0,
     gaps: gapMode === "none" ? 0 : Math.max(0, weights.gaps),
-    availability: Math.max(0, weights.availability),
   };
 
-  const sum = effective.start + effective.days + effective.gaps + effective.availability;
+  const sum = effective.start + effective.days + effective.gaps;
   if (sum === 0) {
-    return { start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 };
+    return { start: 1 / 3, days: 1 / 3, gaps: 1 / 3 };
   }
 
   return {
     start: effective.start / sum,
     days: effective.days / sum,
     gaps: effective.gaps / sum,
-    availability: effective.availability / sum,
   };
 }
 
@@ -168,17 +167,16 @@ export function scoreSchedule(
 ): { score: number; subscores: Subscores } {
   const subscores: Subscores = {
     start: startSubscore(schedule, prefs.startThresholdMinutes),
-    days: daysSubscore(schedule),
+    days: daysSubscore(schedule, prefs.preferredDays),
     gaps: gapsSubscore(schedule, prefs.gapMode),
     availability: availabilitySubscore(schedule),
   };
 
-  const weights = normalizeWeights(prefs.weights, prefs.gapMode);
+  const weights = normalizeWeights(prefs.weights, prefs.gapMode, prefs.preferredDays.length > 0);
   const weighted =
     subscores.start * weights.start +
     subscores.days * weights.days +
-    subscores.gaps * weights.gaps +
-    subscores.availability * weights.availability;
+    subscores.gaps * weights.gaps;
 
   return { score: Math.round(clamp01(weighted) * 100), subscores };
 }
@@ -186,6 +184,9 @@ export function scoreSchedule(
 /**
  * Ranks every schedule. This function must never drop an element: preferences
  * express themselves as order only. See the no-removal invariant in the spec.
+ * Availability no longer drives the weighted score directly, but still
+ * breaks ties -- a schedule with more open seats wins an otherwise-equal
+ * comparison.
  */
 export function rankSchedules(
   schedules: GeneratedSchedule[],
@@ -249,12 +250,8 @@ export function buildChips(
     positive.push({ label: `${labels} free`, tone: "positive" });
   }
 
-  if (subscores.gaps >= CHIP_STRENGTH_THRESHOLD) {
-    if (prefs.gapMode === "tight") {
-      positive.push({ label: "Short gaps between classes", tone: "positive" });
-    } else if (prefs.gapMode === "lunch") {
-      positive.push({ label: "Midday break most days", tone: "positive" });
-    }
+  if (subscores.gaps >= CHIP_STRENGTH_THRESHOLD && prefs.gapMode === "tight") {
+    positive.push({ label: "Short gaps between classes", tone: "positive" });
   }
 
   if (subscores.availability < 1) {
@@ -275,17 +272,26 @@ export const PRESETS: Record<PresetName, RankingPreferences> = {
   sleepIn: {
     startThresholdMinutes: 10 * 60,
     gapMode: "none",
-    weights: { start: 0.5, days: 0.15, gaps: 0, availability: 0.35 },
+    preferredDays: [],
+    hideClosedSections: false,
+    hideWaitlistedSections: false,
+    weights: { start: 0.8, days: 0.1, gaps: 0.1 },
   },
   compactWeek: {
     startThresholdMinutes: 8 * 60,
     gapMode: "tight",
-    weights: { start: 0.1, days: 0.5, gaps: 0.2, availability: 0.2 },
+    preferredDays: [],
+    hideClosedSections: false,
+    hideWaitlistedSections: false,
+    weights: { start: 0.2, days: 0.4, gaps: 0.4 },
   },
   balanced: {
     startThresholdMinutes: 9 * 60,
-    gapMode: "lunch",
-    weights: { start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 },
+    gapMode: "none",
+    preferredDays: [],
+    hideClosedSections: false,
+    hideWaitlistedSections: false,
+    weights: { start: 0.34, days: 0.33, gaps: 0.33 },
   },
 };
 
@@ -297,6 +303,12 @@ export const PRESET_LABELS: Record<PresetName, string> = {
 
 export const DEFAULT_PREFERENCES: RankingPreferences = PRESETS.balanced;
 
+function sameDaySet(a: WeekDay[], b: WeekDay[]): boolean {
+  if (a.length !== b.length) return false;
+  const setB = new Set(b);
+  return a.every((day) => setB.has(day));
+}
+
 /** Returns the preset these preferences exactly match, or null if customized. */
 export function matchPreset(prefs: RankingPreferences): PresetName | null {
   const names = Object.keys(PRESETS) as PresetName[];
@@ -306,10 +318,12 @@ export function matchPreset(prefs: RankingPreferences): PresetName | null {
       return (
         preset.startThresholdMinutes === prefs.startThresholdMinutes &&
         preset.gapMode === prefs.gapMode &&
+        preset.hideClosedSections === prefs.hideClosedSections &&
+        preset.hideWaitlistedSections === prefs.hideWaitlistedSections &&
+        sameDaySet(preset.preferredDays, prefs.preferredDays) &&
         preset.weights.start === prefs.weights.start &&
         preset.weights.days === prefs.weights.days &&
-        preset.weights.gaps === prefs.weights.gaps &&
-        preset.weights.availability === prefs.weights.availability
+        preset.weights.gaps === prefs.weights.gaps
       );
     }) ?? null
   );

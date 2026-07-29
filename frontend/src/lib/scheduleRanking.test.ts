@@ -5,10 +5,10 @@ import {
   isFullyAsync,
   startSubscore,
   daysSubscore,
-  collectBlocks,
   gapsSubscore,
   collectSections,
   availabilitySubscore,
+  filterSchedules,
   normalizeWeights,
   scoreSchedule,
   rankSchedules,
@@ -83,47 +83,27 @@ describe("startSubscore", () => {
 });
 
 describe("daysSubscore", () => {
-  it("scores 1 for a single day on campus", () => {
-    expect(daysSubscore(makeSchedule({ activeDays: ["M"] }))).toBe(1);
+  it("scores 1 when no day preference is set", () => {
+    expect(daysSubscore(makeSchedule({ activeDays: ["M", "T", "W", "R", "F"] }), [])).toBe(1);
   });
 
-  it("scores 0 for five days on campus", () => {
-    expect(daysSubscore(makeSchedule({ activeDays: ["M", "T", "W", "R", "F"] }))).toBe(0);
+  it("scores 1 when every active day is inside the preferred set", () => {
+    expect(daysSubscore(makeSchedule({ activeDays: ["M", "W"] }), ["M", "W", "F"])).toBe(1);
   });
 
-  it("scores 0.5 for three days on campus", () => {
-    expect(daysSubscore(makeSchedule({ activeDays: ["M", "W", "F"] }))).toBe(0.5);
+  it("penalizes in proportion to active days outside the preferred set", () => {
+    // 1 of 4 active days (F) falls outside {M, T, W, R}.
+    expect(
+      daysSubscore(makeSchedule({ activeDays: ["M", "T", "W", "F"] }), ["M", "T", "W", "R"]),
+    ).toBeCloseTo(0.75);
   });
 
-  it("scores 1 and never above 1 for a fully asynchronous schedule", () => {
-    expect(daysSubscore(makeSchedule({ activeDays: [] }))).toBe(1);
-  });
-});
-
-/** Builds a schedule whose groups carry the given blocks on one section. */
-function makeScheduleWithBlocks(
-  blocks: { day: string; start: number; end: number }[],
-  overrides: Partial<GeneratedSchedule> = {},
-): GeneratedSchedule {
-  return makeSchedule({
-    groups: [{ sections: [{ blocks }] }],
-    ...overrides,
-  } as unknown as Partial<GeneratedSchedule>);
-}
-
-describe("collectBlocks", () => {
-  it("flattens blocks across all groups and sections", () => {
-    const schedule = makeSchedule({
-      groups: [
-        { sections: [{ blocks: [{ day: "M", start: 540, end: 590 }] }] },
-        { sections: [{ blocks: [{ day: "W", start: 600, end: 650 }] }] },
-      ],
-    } as unknown as Partial<GeneratedSchedule>);
-    expect(collectBlocks(schedule)).toHaveLength(2);
+  it("scores 0 when every active day is outside the preferred set", () => {
+    expect(daysSubscore(makeSchedule({ activeDays: ["F"] }), ["M"])).toBe(0);
   });
 
-  it("returns an empty array when there are no groups", () => {
-    expect(collectBlocks(makeSchedule({ groups: [] }))).toEqual([]);
+  it("scores 1 for a fully asynchronous schedule regardless of preference", () => {
+    expect(daysSubscore(makeSchedule({ activeDays: [] }), ["M"])).toBe(1);
   });
 });
 
@@ -142,114 +122,6 @@ describe("gapsSubscore, tight mode", () => {
   });
 });
 
-describe("gapsSubscore, lunch mode", () => {
-  it("scores 1 when every active day has a qualifying midday gap", () => {
-    // Monday: 10:00-11:00 then 12:00-13:00, a 60 minute gap starting at 11:00.
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 600, end: 660 },
-        { day: "M", start: 720, end: 780 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(1);
-  });
-
-  it("scores 0 when the gap is shorter than 45 minutes", () => {
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 600, end: 660 },
-        { day: "M", start: 690, end: 750 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(0);
-  });
-
-  it("scores 0 when the gap is longer than 90 minutes", () => {
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 600, end: 660 },
-        { day: "M", start: 780, end: 840 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(0);
-  });
-
-  it("scores 0 when a qualifying-length gap falls outside 11:00 to 14:00", () => {
-    // 08:00-09:00 then 10:00-11:00, a 60 minute gap from 9:00-10:00, entirely before the window.
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 480, end: 540 },
-        { day: "M", start: 600, end: 660 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(0);
-  });
-
-  it("scores 0 when the gap ends exactly at the window start", () => {
-    // Gap 10:00-11:00. gapEnd === 660, and the overlap test is strict.
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 540, end: 600 },
-        { day: "M", start: 660, end: 720 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(0);
-  });
-
-  it("scores 0 when the gap starts exactly at the window end", () => {
-    // Gap 14:00-15:00. gapStart === 840, and the overlap test is strict.
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 780, end: 840 },
-        { day: "M", start: 900, end: 960 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(0);
-  });
-
-  it("counts a gap of exactly the minimum duration", () => {
-    // Gap 11:30-12:15, exactly 45 minutes, inside the window.
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 630, end: 690 },
-        { day: "M", start: 735, end: 795 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(1);
-  });
-
-  it("counts a gap of exactly the maximum duration", () => {
-    // Gap 11:30-13:00, exactly 90 minutes, inside the window.
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 630, end: 690 },
-        { day: "M", start: 780, end: 840 },
-      ],
-      { activeDays: ["M"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(1);
-  });
-
-  it("scores the fraction of active days that qualify", () => {
-    const schedule = makeScheduleWithBlocks(
-      [
-        { day: "M", start: 600, end: 660 },
-        { day: "M", start: 720, end: 780 },
-        { day: "W", start: 600, end: 660 },
-      ],
-      { activeDays: ["M", "W"] },
-    );
-    expect(gapsSubscore(schedule, "lunch")).toBe(0.5);
-  });
-});
-
 describe("gapsSubscore, none mode", () => {
   it("scores 1 regardless of gaps", () => {
     expect(gapsSubscore(makeSchedule({ totalGapMinutes: 900 }), "none")).toBe(1);
@@ -257,21 +129,33 @@ describe("gapsSubscore, none mode", () => {
 });
 
 describe("gapsSubscore, fully asynchronous", () => {
-  it("scores 1 in lunch mode without dividing by zero", () => {
-    expect(gapsSubscore(makeSchedule({ activeDays: [], groups: [] }), "lunch")).toBe(1);
+  it("scores 1 in tight mode without dividing by zero", () => {
+    expect(gapsSubscore(makeSchedule({ activeDays: [], groups: [] }), "tight")).toBe(1);
   });
 });
 
 const basePrefs: RankingPreferences = {
   startThresholdMinutes: 540, // 09:00
   gapMode: "none",
-  weights: { start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 },
+  preferredDays: [],
+  hideClosedSections: false,
+  hideWaitlistedSections: false,
+  weights: { start: 1 / 3, days: 1 / 3, gaps: 1 / 3 },
 };
 
-/** Builds a schedule whose sections carry the given statuses. */
+/** Builds a schedule whose sections carry the given statuses (no ids). */
 function makeScheduleWithStatuses(statuses: string[]): GeneratedSchedule {
   return makeSchedule({
     groups: [{ sections: statuses.map((status) => ({ status, blocks: [] })) }],
+  } as unknown as Partial<GeneratedSchedule>);
+}
+
+/** Builds a schedule whose sections carry the given status and id, for filterSchedules tests. */
+function makeScheduleWithSections(sections: { status: string; _id?: string }[]): GeneratedSchedule {
+  return makeSchedule({
+    groups: [
+      { sections: sections.map((s) => ({ _id: s._id ?? "sec", status: s.status, blocks: [] })) },
+    ],
   } as unknown as Partial<GeneratedSchedule>);
 }
 
@@ -303,27 +187,105 @@ describe("availabilitySubscore", () => {
   });
 });
 
+describe("filterSchedules", () => {
+  const noFilters = { hideClosedSections: false, hideWaitlistedSections: false };
+
+  it("returns the input unchanged when both filters are off", () => {
+    const schedules = [makeScheduleWithSections([{ status: "Closed" }])];
+    expect(filterSchedules(schedules, noFilters, new Set())).toBe(schedules);
+  });
+
+  it("excludes a schedule with a closed section when hideClosedSections is on", () => {
+    const open = makeScheduleWithSections([{ status: "Open" }]);
+    const closed = makeScheduleWithSections([{ status: "Closed" }]);
+    const result = filterSchedules(
+      [open, closed],
+      { hideClosedSections: true, hideWaitlistedSections: false },
+      new Set(),
+    );
+    expect(result).toEqual([open]);
+  });
+
+  it("excludes a schedule with a waitlisted section when hideWaitlistedSections is on", () => {
+    const open = makeScheduleWithSections([{ status: "Open" }]);
+    const waitlisted = makeScheduleWithSections([{ status: "Waitlisted" }]);
+    const result = filterSchedules(
+      [open, waitlisted],
+      { hideClosedSections: false, hideWaitlistedSections: true },
+      new Set(),
+    );
+    expect(result).toEqual([open]);
+  });
+
+  it("excludes a schedule failing either filter when both are on", () => {
+    const open = makeScheduleWithSections([{ status: "Open" }]);
+    const closed = makeScheduleWithSections([{ status: "Closed" }]);
+    const waitlisted = makeScheduleWithSections([{ status: "Waitlisted" }]);
+    const result = filterSchedules(
+      [open, closed, waitlisted],
+      { hideClosedSections: true, hideWaitlistedSections: true },
+      new Set(),
+    );
+    expect(result).toEqual([open]);
+  });
+
+  it("exempts a pinned section from the filter even when its status would otherwise exclude it", () => {
+    const closedPinned = makeScheduleWithSections([{ status: "Closed", _id: "pinned-1" }]);
+    const result = filterSchedules(
+      [closedPinned],
+      { hideClosedSections: true, hideWaitlistedSections: false },
+      new Set(["pinned-1"]),
+    );
+    expect(result).toEqual([closedPinned]);
+  });
+
+  it("still filters a schedule's other, non-pinned closed sections even when one section is pinned", () => {
+    const schedule = makeScheduleWithSections([
+      { status: "Closed", _id: "pinned-1" },
+      { status: "Closed", _id: "not-pinned" },
+    ]);
+    const result = filterSchedules(
+      [schedule],
+      { hideClosedSections: true, hideWaitlistedSections: false },
+      new Set(["pinned-1"]),
+    );
+    expect(result).toEqual([]);
+  });
+});
+
 describe("normalizeWeights", () => {
   it("leaves weights summing to 1 unchanged", () => {
-    const result = normalizeWeights({ start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 }, "lunch");
-    expect(result.start).toBeCloseTo(0.25);
+    const result = normalizeWeights({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 }, "tight", true);
+    expect(result.start).toBeCloseTo(1 / 3);
   });
 
   it("rescales weights that do not sum to 1", () => {
-    const result = normalizeWeights({ start: 2, days: 2, gaps: 2, availability: 2 }, "lunch");
-    expect(result.start).toBeCloseTo(0.25);
+    const result = normalizeWeights({ start: 2, days: 2, gaps: 2 }, "tight", true);
+    expect(result.start).toBeCloseTo(1 / 3);
   });
 
   it("zeroes the gap weight and redistributes when mode is none", () => {
-    const result = normalizeWeights({ start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 }, "none");
+    const result = normalizeWeights({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 }, "none", true);
     expect(result.gaps).toBe(0);
-    expect(result.start).toBeCloseTo(1 / 3);
-    expect(result.start + result.days + result.availability).toBeCloseTo(1);
+    expect(result.start).toBeCloseTo(0.5);
+    expect(result.start + result.days).toBeCloseTo(1);
+  });
+
+  it("zeroes the days weight and redistributes when no preferred days are set", () => {
+    const result = normalizeWeights({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 }, "tight", false);
+    expect(result.days).toBe(0);
+    expect(result.start).toBeCloseTo(0.5);
+    expect(result.start + result.gaps).toBeCloseTo(1);
   });
 
   it("falls back to equal weights when everything is zero", () => {
-    const result = normalizeWeights({ start: 0, days: 0, gaps: 0, availability: 0 }, "lunch");
-    expect(result.start).toBeCloseTo(0.25);
+    const result = normalizeWeights({ start: 0, days: 0, gaps: 0 }, "tight", true);
+    expect(result.start).toBeCloseTo(1 / 3);
+  });
+
+  it("falls back to equal weights when both gaps and days are zeroed out", () => {
+    const result = normalizeWeights({ start: 0, days: 1, gaps: 1 }, "none", false);
+    expect(result).toEqual({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 });
   });
 });
 
@@ -367,8 +329,9 @@ describe("rankSchedules", () => {
     const configs: RankingPreferences[] = [
       basePrefs,
       { ...basePrefs, gapMode: "tight" },
-      { ...basePrefs, weights: { start: 0, days: 0, gaps: 0, availability: 1 } },
+      { ...basePrefs, weights: { start: 0, days: 0, gaps: 1 } },
       { ...basePrefs, startThresholdMinutes: 1200 },
+      { ...basePrefs, hideClosedSections: true, hideWaitlistedSections: true },
     ];
     for (const prefs of configs) {
       const ranked = rankSchedules(schedules, prefs);
@@ -388,7 +351,7 @@ describe("rankSchedules", () => {
     } as unknown as Partial<GeneratedSchedule>);
     const zeroWeights: RankingPreferences = {
       ...basePrefs,
-      weights: { start: 0, days: 0, gaps: 0, availability: 0 },
+      weights: { start: 0, days: 0, gaps: 0 },
     };
     const ranked = rankSchedules([lowAvailability, highAvailability], zeroWeights);
     expect(ranked[0].schedule).toBe(highAvailability);
@@ -430,14 +393,6 @@ describe("buildChips", () => {
       gapMode: "tight",
     });
     expect(chips.some((c) => c.label === "Short gaps between classes")).toBe(true);
-  });
-
-  it("describes a midday break in lunch mode", () => {
-    const chips = buildChips(makeSchedule({ daysOff: [] }), perfectSubscores, {
-      ...basePrefs,
-      gapMode: "lunch",
-    });
-    expect(chips.some((c) => c.label === "Midday break most days")).toBe(true);
   });
 
   it("raises a caution for waitlisted sections", () => {
@@ -489,7 +444,7 @@ describe("buildChips", () => {
     } as unknown as Partial<GeneratedSchedule>);
     const chips = buildChips(schedule, { ...perfectSubscores, availability: 0 }, {
       ...basePrefs,
-      gapMode: "lunch",
+      gapMode: "tight",
     });
     expect(chips.length).toBeLessThanOrEqual(4);
     expect(chips[chips.length - 1].tone).toBe("caution");
@@ -501,26 +456,29 @@ describe("presets", () => {
     expect(Object.keys(PRESETS).sort()).toEqual(["balanced", "compactWeek", "sleepIn"]);
   });
 
-  it("sets Sleep In to a 10:00 threshold with no gap preference", () => {
+  it("sets Sleep In to a 10:00 threshold with no gap preference and no day/filter preference", () => {
     expect(PRESETS.sleepIn.startThresholdMinutes).toBe(600);
     expect(PRESETS.sleepIn.gapMode).toBe("none");
-    expect(PRESETS.sleepIn.weights.start).toBe(0.5);
+    expect(PRESETS.sleepIn.preferredDays).toEqual([]);
+    expect(PRESETS.sleepIn.hideClosedSections).toBe(false);
+    expect(PRESETS.sleepIn.hideWaitlistedSections).toBe(false);
+    expect(PRESETS.sleepIn.weights.start).toBe(0.8);
   });
 
-  it("sets Compact Week to weight days most heavily with tight gaps", () => {
+  it("sets Compact Week to weight days and gaps most heavily with tight gaps", () => {
     expect(PRESETS.compactWeek.gapMode).toBe("tight");
-    expect(PRESETS.compactWeek.weights.days).toBe(0.5);
+    expect(PRESETS.compactWeek.weights.days).toBe(0.4);
+    expect(PRESETS.compactWeek.weights.gaps).toBe(0.4);
     expect(PRESETS.compactWeek.startThresholdMinutes).toBe(480);
   });
 
-  it("sets Balanced to even weights protecting a lunch break", () => {
-    expect(PRESETS.balanced.gapMode).toBe("lunch");
+  it("sets Balanced to even weights with no gap preference", () => {
+    expect(PRESETS.balanced.gapMode).toBe("none");
     expect(PRESETS.balanced.startThresholdMinutes).toBe(540);
     expect(PRESETS.balanced.weights).toEqual({
-      start: 0.25,
-      days: 0.25,
-      gaps: 0.25,
-      availability: 0.25,
+      start: 0.34,
+      days: 0.33,
+      gaps: 0.33,
     });
   });
 
@@ -537,5 +495,13 @@ describe("matchPreset", () => {
 
   it("returns null for customized preferences", () => {
     expect(matchPreset({ ...PRESETS.balanced, startThresholdMinutes: 660 })).toBeNull();
+  });
+
+  it("returns null when a filter toggle differs from the preset", () => {
+    expect(matchPreset({ ...PRESETS.balanced, hideClosedSections: true })).toBeNull();
+  });
+
+  it("returns null when the preferred day set differs from the preset", () => {
+    expect(matchPreset({ ...PRESETS.balanced, preferredDays: ["M"] })).toBeNull();
   });
 });
