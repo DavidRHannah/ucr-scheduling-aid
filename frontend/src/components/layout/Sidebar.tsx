@@ -13,8 +13,8 @@ import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   { to: "/", label: "Schedule Builder", icon: CalendarRange },
-  { to: "/course-search", label: "Course Search", icon: Search },
   { to: "/saved-schedules", label: "Saved Schedules", icon: Bookmark },
+  { to: "/course-search", label: "Course Search", icon: Search },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
