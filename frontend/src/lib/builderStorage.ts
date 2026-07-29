@@ -9,7 +9,7 @@ import type { RankingPreferences } from "@/lib/scheduleRanking";
  * and vice versa.
  */
 const BUILDER_STATE_VERSION = 1;
-const PREFERENCES_VERSION = 1;
+const PREFERENCES_VERSION = 2;
 
 const BUILDER_STATE_KEY_PREFIX = "builderState:";
 const PREFERENCES_KEY = "builderPreferences";
@@ -93,6 +93,9 @@ export function parsePreferences(raw: string | null): RankingPreferences | null 
   const candidate = preferences as Record<string, unknown>;
   if (typeof candidate.startThresholdMinutes !== "number") return null;
   if (typeof candidate.gapMode !== "string") return null;
+  if (!Array.isArray(candidate.preferredDays)) return null;
+  if (typeof candidate.hideClosedSections !== "boolean") return null;
+  if (typeof candidate.hideWaitlistedSections !== "boolean") return null;
   if (
     typeof candidate.weights !== "object" ||
     candidate.weights === null ||
