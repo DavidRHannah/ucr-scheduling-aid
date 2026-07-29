@@ -12,7 +12,8 @@ dist
 dist-ssr
 *.local
 .env
-/docs
+/docs/*
+!/docs/imgs/
 /backend/data/raw
 /backend/BACKEND_API.md
 /stories
