@@ -2,6 +2,8 @@
 
 UCR Scheduling Aid is a web application created for UC Riverside students. It makes class registration planning fast and efficient by finding class combinations that fit according to your needs.
 
+![UCR Scheduling Aid Demo](docs/imgs/demo.png)
+
 ---
 
 ## What It Does
