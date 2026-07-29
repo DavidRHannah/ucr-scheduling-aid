@@ -102,6 +102,18 @@ This produces a deliberate behavior change beyond pure persistence: switching Fa
 - on `[termCode, selectedCourses, pinnedSections]` — writes the per-term payload
 - on `[preferences]` — writes the preferences payload
 
+**The per-term write is guarded by an ownership ref.** Without a guard, switching terms corrupts the destination term's stored state. When `termCode` changes, React renders with the new term but the previous `selectedCourses`, because the load effect's `setState` has not flushed yet. Effects then run in declaration order: the load effect requests the new term's state, but the write effect executes in that same commit with the new `termCode` and the *old* courses still in its closure, writing the previous term's selection under the new term's key.
+
+That does self-correct on the following commit, but depending on "the wrong value is overwritten a few milliseconds later" is the same fragility the lazy initializers were chosen to avoid on mount, and it breaks outright if anything reads storage inside that window.
+
+The guard is a ref holding the term that the in-memory state belongs to:
+
+- Initialized to the mount-time `termCode`, alongside the lazy initializers.
+- The load effect sets it to the new term at the same time it loads that term's state.
+- The write effect writes only when `stateTermRef.current === termCode`, and skips otherwise.
+
+The invariant this enforces, stated plainly: never persist builder state under a term it did not come from.
+
 ### Error handling
 
 - All localStorage writes are wrapped in try/catch and fail silently. localStorage throws in private browsing and when quota is exhausted; failing to persist must never break the builder, because persistence is a convenience rather than core functionality.
@@ -119,6 +131,7 @@ This produces a deliberate behavior change beyond pure persistence: switching Fa
 4. With nothing stored, the builder opens empty as it does today.
 5. Preferences set in the Preferences tab survive a reload.
 6. Remove all courses, reload — the builder stays empty rather than resurrecting the cleared selection.
+7. Add courses under Fall, switch to Winter, and immediately reload while still on Winter — Winter must be empty. This is the check that the ownership ref actually holds; without it, Fall's courses leak into Winter's stored state.
 
 ## Out of Scope
 
