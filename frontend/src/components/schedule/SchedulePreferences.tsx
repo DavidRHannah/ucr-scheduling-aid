@@ -1,20 +1,23 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { WEEK_DAYS, type WeekDay } from "@/lib/calendarLayout";
+import { OptionGroup } from "./OptionGroup";
 import {
-  PRESETS,
-  PRESET_LABELS,
-  matchPreset,
+  isDefaultPreferences,
   type GapMode,
-  type PresetName,
   type RankingPreferences,
 } from "@/lib/scheduleRanking";
 
+/** Sentinel option value standing in for a null start threshold. */
+const NO_START_PREFERENCE = "none";
+
 const START_OPTIONS = [
-  { minutes: 8 * 60, label: "8:00 AM" },
-  { minutes: 9 * 60, label: "9:00 AM" },
-  { minutes: 10 * 60, label: "10:00 AM" },
-  { minutes: 11 * 60, label: "11:00 AM" },
-  { minutes: 12 * 60, label: "12:00 PM" },
+  { value: NO_START_PREFERENCE, label: "No preference" },
+  { value: String(8 * 60), label: "8 AM" },
+  { value: String(9 * 60), label: "9 AM" },
+  { value: String(10 * 60), label: "10 AM" },
+  { value: String(11 * 60), label: "11 AM" },
+  { value: String(12 * 60), label: "12 PM" },
 ];
 
 const GAP_OPTIONS: { value: GapMode; label: string }[] = [
@@ -22,126 +25,127 @@ const GAP_OPTIONS: { value: GapMode; label: string }[] = [
   { value: "none", label: "No preference" },
 ];
 
+const DAY_OPTIONS = WEEK_DAYS.map((day) => ({ value: day.key, label: day.label }));
+
 interface SchedulePreferencesProps {
   preferences: RankingPreferences;
   onChange: (next: RankingPreferences) => void;
+  /** Schedules surviving the active filters. */
+  visibleCount: number;
+  /** Schedules the active filters removed. */
+  hiddenCount: number;
+  onReset: () => void;
 }
 
-export function SchedulePreferences({ preferences, onChange }: SchedulePreferencesProps) {
-  const activePreset = matchPreset(preferences);
-  const presetNames = Object.keys(PRESETS) as PresetName[];
+export function SchedulePreferences({
+  preferences,
+  onChange,
+  visibleCount,
+  hiddenCount,
+  onReset,
+}: SchedulePreferencesProps) {
+  const startSelected =
+    preferences.startThresholdMinutes === null
+      ? [NO_START_PREFERENCE]
+      : [String(preferences.startThresholdMinutes)];
 
-  const toggleDay = (day: WeekDay) => {
-    const isSelected = preferences.preferredDays.includes(day);
-    const nextDays = isSelected
+  const handleStartSelect = (value: string) => {
+    onChange({
+      ...preferences,
+      startThresholdMinutes: value === NO_START_PREFERENCE ? null : Number(value),
+    });
+  };
+
+  const handleDaySelect = (day: WeekDay) => {
+    const nextDays = preferences.preferredDays.includes(day)
       ? preferences.preferredDays.filter((d) => d !== day)
       : [...preferences.preferredDays, day];
     onChange({ ...preferences, preferredDays: nextDays });
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {presetNames.map((name) => (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs text-gray-500">
+          {visibleCount} schedule{visibleCount === 1 ? "" : "s"}
+          {hiddenCount > 0 && ` - ${hiddenCount} hidden by filters`}
+        </p>
+        {!isDefaultPreferences(preferences) && (
           <Button
-            key={name}
+            variant="ghost"
             size="sm"
-            variant={activePreset === name ? "default" : "outline"}
-            className="cursor-pointer text-xs"
-            onClick={() => onChange(PRESETS[name])}
+            className="h-6 shrink-0 cursor-pointer px-2 text-xs"
+            onClick={onReset}
           >
-            {PRESET_LABELS[name]}
+            Reset
           </Button>
-        ))}
+        )}
       </div>
 
-      <div className="border-t border-gray-100 pt-3">
-        <span className="text-xs font-semibold text-gray-400">
-          {activePreset ? "Adjust to customize" : "Custom"}
-        </span>
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-gray-600">Start no earlier than</label>
-        <div className="flex flex-wrap gap-1">
-          {START_OPTIONS.map((option) => (
-            <Button
-              key={option.minutes}
-              size="sm"
-              variant={preferences.startThresholdMinutes === option.minutes ? "secondary" : "ghost"}
-              className="h-7 cursor-pointer px-2 text-xs"
-              onClick={() => onChange({ ...preferences, startThresholdMinutes: option.minutes })}
-            >
-              {option.label}
-            </Button>
-          ))}
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">Ranking</h3>
+          <p className="text-xs text-gray-400">Reorders results, never removes any.</p>
         </div>
-      </div>
 
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-gray-600">Prefer to be on campus</label>
-        <div className="flex flex-wrap gap-1">
-          {WEEK_DAYS.map((day) => (
-            <Button
-              key={day.key}
-              size="sm"
-              variant={preferences.preferredDays.includes(day.key) ? "secondary" : "ghost"}
-              className="h-7 cursor-pointer px-2 text-xs"
-              onClick={() => toggleDay(day.key)}
-            >
-              {day.label}
-            </Button>
-          ))}
+        <OptionGroup
+          label="Start no earlier than"
+          options={START_OPTIONS}
+          selected={startSelected}
+          onSelect={handleStartSelect}
+        />
+
+        <OptionGroup
+          label="Prefer to be on campus"
+          options={DAY_OPTIONS}
+          selected={preferences.preferredDays}
+          onSelect={handleDaySelect}
+        />
+
+        <OptionGroup
+          label="Between classes"
+          options={GAP_OPTIONS}
+          selected={[preferences.gapMode]}
+          onSelect={(gapMode) => onChange({ ...preferences, gapMode })}
+        />
+      </section>
+
+      <section className="space-y-2 border-t border-gray-100 pt-4">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">Filters</h3>
+          <p className="text-xs text-gray-400">Remove schedules from the list.</p>
         </div>
-        <p className="text-xs text-gray-400">
-          {preferences.preferredDays.length === 0
-            ? "No preference — every day is equally fine."
-            : "Schedules using other days are still shown, just ranked lower."}
-        </p>
-      </div>
 
-      <div className="space-y-1">
-        <label className="text-xs font-semibold text-gray-600">Between classes</label>
-        <div className="flex flex-wrap gap-1">
-          {GAP_OPTIONS.map((option) => (
-            <Button
-              key={option.value}
-              size="sm"
-              variant={preferences.gapMode === option.value ? "secondary" : "ghost"}
-              className="h-7 cursor-pointer px-2 text-xs"
-              onClick={() => onChange({ ...preferences, gapMode: option.value })}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-1.5 border-t border-gray-100 pt-3">
-        <label className="text-xs font-semibold text-gray-600">Open sections</label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="hide-closed"
             checked={preferences.hideClosedSections}
-            onChange={(e) => onChange({ ...preferences, hideClosedSections: e.target.checked })}
-            className="cursor-pointer"
+            onCheckedChange={(checked) =>
+              onChange({ ...preferences, hideClosedSections: checked === true })
+            }
           />
-          Hide schedules with closed sections
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
+          <label htmlFor="hide-closed" className="cursor-pointer text-sm text-gray-700">
+            Hide schedules with closed sections
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="hide-waitlisted"
             checked={preferences.hideWaitlistedSections}
-            onChange={(e) => onChange({ ...preferences, hideWaitlistedSections: e.target.checked })}
-            className="cursor-pointer"
+            onCheckedChange={(checked) =>
+              onChange({ ...preferences, hideWaitlistedSections: checked === true })
+            }
           />
-          Hide schedules with waitlisted sections
-        </label>
+          <label htmlFor="hide-waitlisted" className="cursor-pointer text-sm text-gray-700">
+            Hide schedules with waitlisted sections
+          </label>
+        </div>
+
         <p className="text-xs text-gray-400">
-          A section you&apos;ve pinned yourself is never hidden by these, even if it&apos;s closed
-          or waitlisted.
+          Sections you&apos;ve pinned yourself are never hidden by these.
         </p>
-      </div>
+      </section>
     </div>
   );
 }
