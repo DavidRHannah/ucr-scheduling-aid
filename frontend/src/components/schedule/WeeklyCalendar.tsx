@@ -1,52 +1,9 @@
 import type { Section } from "@/lib/api";
-
-type WeekDay = "M" | "T" | "W" | "R" | "F" | "S" | "U";
-
-const days: { key: WeekDay; label: string }[] = [
-  { key: "M", label: "Mon" },
-  { key: "T", label: "Tue" },
-  { key: "W", label: "Wed" },
-  { key: "R", label: "Thu" },
-  { key: "F", label: "Fri" },
-];
-
-/** Hard bounds so a stray record cannot render a 24-hour grid. */
-const MIN_HOUR = 6;
-const MAX_HOUR = 23;
-const DEFAULT_START_HOUR = 8;
-const DEFAULT_END_HOUR = 18;
-
-/**
- * Bounds the grid to the sections actually present, with one hour of padding.
- * The old fixed 8:00-18:00 window silently hid evening classes.
- */
-function getVisibleHourRange(sections: Section[]): {
-  startHour: number;
-  endHour: number;
-} {
-  const times = sections.flatMap((section) =>
-    section.meetingTimes.flatMap((meeting) => [
-      timeToMinutes(meeting.startTime),
-      timeToMinutes(meeting.endTime),
-    ]),
-  );
-
-  if (times.length === 0) {
-    return { startHour: DEFAULT_START_HOUR, endHour: DEFAULT_END_HOUR };
-  }
-
-  const earliest = Math.floor(Math.min(...times) / 60) - 1;
-  const latest = Math.ceil(Math.max(...times) / 60) + 1;
-
-  const startHour = Math.max(MIN_HOUR, earliest);
-  const endHour = Math.min(MAX_HOUR, latest);
-
-  if (startHour >= endHour) {
-    return { startHour: DEFAULT_START_HOUR, endHour: DEFAULT_END_HOUR };
-  }
-
-  return { startHour, endHour };
-}
+import {
+  WEEK_DAYS,
+  getVisibleHourRange,
+  placeBlocks,
+} from "@/lib/calendarLayout";
 
 const subjectColors = [
   { bg: "bg-blue-50 border-blue-200 text-blue-900" },
@@ -68,41 +25,6 @@ function getSubjectColor(subject: string): string {
   return subjectColors[idx].bg;
 }
 
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-interface PlacedBlock {
-  section: Section;
-  day: WeekDay;
-  startRow: number;
-  rowSpan: number;
-}
-
-function placeBlocks(sections: Section[], startHour: number): PlacedBlock[] {
-  const blocks: PlacedBlock[] = [];
-  const gridStartMinutes = startHour * 60;
-
-  for (const section of sections) {
-    for (const meeting of section.meetingTimes) {
-      const startMinutes = timeToMinutes(meeting.startTime) - gridStartMinutes;
-      const endMinutes = timeToMinutes(meeting.endTime) - gridStartMinutes;
-      // Each row represents 30 minutes; row 1 starts at startHour:00.
-      const startRow = Math.floor(startMinutes / 30) + 1;
-      const rowSpan = Math.max(1, Math.ceil((endMinutes - startMinutes) / 30));
-
-      for (const day of meeting.weekDays) {
-        if (days.some((d) => d.key === day)) {
-          blocks.push({ section, day, startRow, rowSpan });
-        }
-      }
-    }
-  }
-
-  return blocks;
-}
-
 interface WeeklyCalendarProps {
   sections: Section[];
 }
@@ -117,11 +39,11 @@ export function WeeklyCalendar({ sections }: WeeklyCalendarProps) {
     <div className="overflow-x-auto rounded-md border border-gray-200 bg-white">
       <div
         className="grid min-w-[700px]"
-        style={{ gridTemplateColumns: `80px repeat(${days.length}, 1fr)` }}
+        style={{ gridTemplateColumns: `80px repeat(${WEEK_DAYS.length}, 1fr)` }}
       >
         {/* Header row */}
         <div className="border-b border-r border-gray-200" />
-        {days.map((day) => (
+        {WEEK_DAYS.map((day) => (
           <div
             key={day.key}
             className="border-b border-r border-gray-200 p-2 text-center text-sm font-semibold text-gray-700"
@@ -145,7 +67,7 @@ export function WeeklyCalendar({ sections }: WeeklyCalendarProps) {
           ))}
         </div>
 
-        {days.map((day) => (
+        {WEEK_DAYS.map((day) => (
           <div
             key={day.key}
             className="relative grid border-r border-gray-200"
