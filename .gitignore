@@ -12,11 +12,20 @@ dist
 dist-ssr
 *.local
 .env
+/docs
+/backend/data/raw
+/backend/BACKEND_API.md
+/stories
+/requirements
+/.superpowers
+/.claude
+CLAUDE.md
+
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea 
 .DS_Store
 *.suo
 *.ntvs*
