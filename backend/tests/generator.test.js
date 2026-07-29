@@ -23,6 +23,9 @@ const resetMocks = () => {
 const mockCourse1 = { _id: 'course1', title: 'CS 010A', creditHours: { low: 4, high: 4 } };
 const mockCourse2 = { _id: 'course2', title: 'MATH 009B', creditHours: { low: 4, high: 4 } };
 
+// Real Banner section data (EN-AbetDepth.json, physics-subject.json) type-prefixes
+// linkIdentifier per schedule-type: a lecture's own identifier is "L1", its matching
+// lab's is "B1" -- the trailing digit is what ties them together, not the full string.
 const mockLec1 = {
   _id: 'lec1',
   courseId: mockCourse1,
@@ -32,7 +35,7 @@ const mockLec1 = {
   creditHours: 4,
   scheduleType: { code: 'LEC' },
   meetingTimes: [{ weekDays: ['M', 'W'], startTime: '10:00', endTime: '11:20' }],
-  linkIdentifier: 'A',
+  linkIdentifier: 'L1',
   toObject() { return this; }
 };
 
@@ -45,7 +48,7 @@ const mockLabA = {
   creditHours: 0,
   scheduleType: { code: 'LAB' },
   meetingTimes: [{ weekDays: ['T'], startTime: '09:00', endTime: '11:50' }],
-  linkIdentifier: 'A',
+  linkIdentifier: 'B1',
   toObject() { return this; }
 };
 
@@ -58,7 +61,7 @@ const mockLabB = {
   creditHours: 0,
   scheduleType: { code: 'LAB' },
   meetingTimes: [{ weekDays: ['T'], startTime: '14:00', endTime: '16:50' }],
-  linkIdentifier: 'B',
+  linkIdentifier: 'B2',
   toObject() { return this; }
 };
 
@@ -85,6 +88,63 @@ const mockMath2 = {
   scheduleType: { code: 'LEC' },
   meetingTimes: [{ weekDays: ['M', 'W'], startTime: '13:00', endTime: '14:20' }], // Free
   linkIdentifier: null,
+  toObject() { return this; }
+};
+
+// Reproduces the real PHYS 002B shape: two independent lecture sections, each with
+// its own linked discussion group (L1<->D1, L2<->D2). A course, department, and
+// generatorController are otherwise uninvolved; this isolates the link-matching rule.
+const mockCourse3 = { _id: 'course3', title: 'PHYS 040A', creditHours: { low: 4, high: 4 } };
+
+const mockPhysLec1 = {
+  _id: 'physlec1',
+  courseId: mockCourse3,
+  subject: 'PHYS',
+  courseNumber: '040A',
+  courseTitle: 'PHYS 040A',
+  creditHours: 4,
+  scheduleType: { code: 'LEC' },
+  meetingTimes: [{ weekDays: ['M'], startTime: '09:00', endTime: '09:50' }],
+  linkIdentifier: 'L1',
+  toObject() { return this; }
+};
+
+const mockPhysLec2 = {
+  _id: 'physlec2',
+  courseId: mockCourse3,
+  subject: 'PHYS',
+  courseNumber: '040A',
+  courseTitle: 'PHYS 040A',
+  creditHours: 4,
+  scheduleType: { code: 'LEC' },
+  meetingTimes: [{ weekDays: ['M'], startTime: '10:00', endTime: '10:50' }],
+  linkIdentifier: 'L2',
+  toObject() { return this; }
+};
+
+const mockPhysDis1 = {
+  _id: 'physdis1',
+  courseId: mockCourse3,
+  subject: 'PHYS',
+  courseNumber: '040A',
+  courseTitle: 'PHYS 040A',
+  creditHours: 0,
+  scheduleType: { code: 'DIS' },
+  meetingTimes: [{ weekDays: ['W'], startTime: '09:00', endTime: '09:50' }],
+  linkIdentifier: 'D1',
+  toObject() { return this; }
+};
+
+const mockPhysDis2 = {
+  _id: 'physdis2',
+  courseId: mockCourse3,
+  subject: 'PHYS',
+  courseNumber: '040A',
+  courseTitle: 'PHYS 040A',
+  creditHours: 0,
+  scheduleType: { code: 'DIS' },
+  meetingTimes: [{ weekDays: ['W'], startTime: '10:00', endTime: '10:50' }],
+  linkIdentifier: 'D2',
   toObject() { return this; }
 };
 
@@ -150,6 +210,25 @@ const main = async () => {
     
     const csGroup = schedule.groups.find(g => g.courseId === 'course1');
     assert.strictEqual(csGroup.sections.length, 2);
+  });
+
+  await runTest('generateCombinations - matches linked sections by numeric suffix across component types', async () => {
+    resetMocks();
+    Section.find = () => ({
+      populate: () => Promise.resolve([mockPhysLec1, mockPhysLec2, mockPhysDis1, mockPhysDis2])
+    });
+
+    const results = await generateCombinations(['course3'], '202620');
+
+    // L1 (lecture 1) only pairs with D1 (its matching discussion group), and
+    // L2 only with D2 -- never L1+D2 or L2+D1, even though linkIdentifier ("L1"
+    // vs "D1") never matches as a full string.
+    assert.strictEqual(results.length, 2);
+    const pairs = results.map((r) => r.groups[0].sections.map((s) => s._id).sort().join('+'));
+    assert.ok(pairs.includes('physdis1+physlec1'));
+    assert.ok(pairs.includes('physdis2+physlec2'));
+    assert.ok(!pairs.includes('physdis1+physlec2'));
+    assert.ok(!pairs.includes('physdis2+physlec1'));
   });
 
   console.log('All generator tests passed successfully.');

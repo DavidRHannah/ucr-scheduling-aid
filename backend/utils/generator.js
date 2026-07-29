@@ -28,6 +28,17 @@ const meetOverlaps = (meetA, meetB) => {
   return startA < endB && startB < endA;
 };
 
+// Extracts the trailing digit group from a linkIdentifier (e.g. "L1" -> "1", "D12" -> "12").
+// Real Banner section data type-prefixes each linked group's identifier per schedule
+// type -- a lecture's own identifier is "L1", its matching discussion's is "D1", its
+// matching lab's is "B1" -- so linked sections must be matched by this shared trailing
+// digit, never by comparing the raw identifier strings (which never match across types).
+const getLinkSuffix = (linkIdentifier) => {
+  if (!linkIdentifier) return null;
+  const match = linkIdentifier.match(/\d+$/);
+  return match ? match[0] : null;
+};
+
 // Check if two sections conflict
 const sectionsConflict = (secA, secB) => {
   for (const meetA of secA.meetingTimes) {
@@ -146,12 +157,14 @@ export const generateCombinations = async (courseIds, termCode, lockedSectionIds
         continue; // Skip if conflicts are not allowed
       }
 
-      // Link dependency matching (lectures paired with labs/discussions sharing same identifier)
+      // Link dependency matching (lectures paired with labs/discussions sharing a linked group)
       let linkMismatch = false;
-      const companionSections = currentSelection.filter(s => s.courseId._id.toString() === currentPool.courseId);
-      for (const companion of companionSections) {
-        if (section.linkIdentifier && companion.linkIdentifier) {
-          if (section.linkIdentifier !== companion.linkIdentifier) {
+      const sectionLinkSuffix = getLinkSuffix(section.linkIdentifier);
+      if (sectionLinkSuffix) {
+        const companionSections = currentSelection.filter(s => s.courseId._id.toString() === currentPool.courseId);
+        for (const companion of companionSections) {
+          const companionLinkSuffix = getLinkSuffix(companion.linkIdentifier);
+          if (companionLinkSuffix && companionLinkSuffix !== sectionLinkSuffix) {
             linkMismatch = true;
             break;
           }
