@@ -39,7 +39,6 @@ const samplePreferences: RankingPreferences = {
   preferredDays: ["M", "W"],
   hideClosedSections: false,
   hideWaitlistedSections: true,
-  weights: { start: 1 / 3, days: 1 / 3, gaps: 1 / 3 },
 };
 
 describe("serializeBuilderState / parseBuilderState", () => {
@@ -125,7 +124,7 @@ describe("serializePreferences / parsePreferences", () => {
   });
 
   it("writes a version field", () => {
-    expect(JSON.parse(serializePreferences(samplePreferences)).version).toBe(2);
+    expect(JSON.parse(serializePreferences(samplePreferences)).version).toBe(3);
   });
 
   it("returns null for absent input", () => {
@@ -142,18 +141,18 @@ describe("serializePreferences / parsePreferences", () => {
   });
 
   it("returns null when preferences is absent", () => {
-    expect(parsePreferences(JSON.stringify({ version: 2 }))).toBeNull();
+    expect(parsePreferences(JSON.stringify({ version: 3 }))).toBeNull();
   });
 
   it("returns null when startThresholdMinutes is not a number", () => {
     const raw = JSON.stringify({
-      version: 2,
+      version: 3,
       preferences: { ...samplePreferences, startThresholdMinutes: "9am" },
     });
     expect(parsePreferences(raw)).toBeNull();
   });
 
-  it("returns null when weights is absent", () => {
+  it("returns null for the previous shape's version", () => {
     const raw = JSON.stringify({
       version: 2,
       preferences: {
@@ -162,26 +161,7 @@ describe("serializePreferences / parsePreferences", () => {
         preferredDays: [],
         hideClosedSections: false,
         hideWaitlistedSections: false,
-      },
-    });
-    expect(parsePreferences(raw)).toBeNull();
-  });
-
-  it("returns null when weights is an array", () => {
-    const raw = JSON.stringify({
-      version: 2,
-      preferences: { ...samplePreferences, weights: [] },
-    });
-    expect(parsePreferences(raw)).toBeNull();
-  });
-
-  it("returns null for the previous shape's version", () => {
-    const raw = JSON.stringify({
-      version: 1,
-      preferences: {
-        startThresholdMinutes: 540,
-        gapMode: "lunch",
-        weights: { start: 0.25, days: 0.25, gaps: 0.25, availability: 0.25 },
+        weights: { start: 1 / 3, days: 1 / 3, gaps: 1 / 3 },
       },
     });
     expect(parsePreferences(raw)).toBeNull();
@@ -189,13 +169,12 @@ describe("serializePreferences / parsePreferences", () => {
 
   it("returns null when preferredDays is absent", () => {
     const raw = JSON.stringify({
-      version: 2,
+      version: 3,
       preferences: {
         startThresholdMinutes: 540,
         gapMode: "none",
         hideClosedSections: false,
         hideWaitlistedSections: false,
-        weights: { start: 1 / 3, days: 1 / 3, gaps: 1 / 3 },
       },
     });
     expect(parsePreferences(raw)).toBeNull();
@@ -203,7 +182,7 @@ describe("serializePreferences / parsePreferences", () => {
 
   it("returns null when preferredDays is not an array", () => {
     const raw = JSON.stringify({
-      version: 2,
+      version: 3,
       preferences: { ...samplePreferences, preferredDays: "M" },
     });
     expect(parsePreferences(raw)).toBeNull();
@@ -211,7 +190,7 @@ describe("serializePreferences / parsePreferences", () => {
 
   it("returns null when hideClosedSections is not a boolean", () => {
     const raw = JSON.stringify({
-      version: 2,
+      version: 3,
       preferences: { ...samplePreferences, hideClosedSections: "yes" },
     });
     expect(parsePreferences(raw)).toBeNull();
@@ -219,8 +198,21 @@ describe("serializePreferences / parsePreferences", () => {
 
   it("returns null when hideWaitlistedSections is not a boolean", () => {
     const raw = JSON.stringify({
-      version: 2,
+      version: 3,
       preferences: { ...samplePreferences, hideWaitlistedSections: "yes" },
+    });
+    expect(parsePreferences(raw)).toBeNull();
+  });
+
+  it("accepts a null startThresholdMinutes", () => {
+    const prefs: RankingPreferences = { ...samplePreferences, startThresholdMinutes: null };
+    expect(parsePreferences(serializePreferences(prefs))).toEqual(prefs);
+  });
+
+  it("returns null when startThresholdMinutes is neither a number nor null", () => {
+    const raw = JSON.stringify({
+      version: 3,
+      preferences: { ...samplePreferences, startThresholdMinutes: "9am" },
     });
     expect(parsePreferences(raw)).toBeNull();
   });
