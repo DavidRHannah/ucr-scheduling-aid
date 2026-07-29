@@ -188,6 +188,27 @@ describe("serializePreferences / parsePreferences", () => {
     expect(parsePreferences(raw)).toBeNull();
   });
 
+  it("returns null when preferredDays contains an invalid weekday key", () => {
+    const raw = JSON.stringify({
+      version: 3,
+      preferences: { ...samplePreferences, preferredDays: ["Xyz"] },
+    });
+    expect(parsePreferences(raw)).toBeNull();
+  });
+
+  it("accepts weekend weekday keys in preferredDays", () => {
+    const prefs: RankingPreferences = { ...samplePreferences, preferredDays: ["S", "U"] };
+    expect(parsePreferences(serializePreferences(prefs))).toEqual(prefs);
+  });
+
+  it("returns null when gapMode is not a valid gap mode", () => {
+    const raw = JSON.stringify({
+      version: 3,
+      preferences: { ...samplePreferences, gapMode: "relaxed" },
+    });
+    expect(parsePreferences(raw)).toBeNull();
+  });
+
   it("returns null when hideClosedSections is not a boolean", () => {
     const raw = JSON.stringify({
       version: 3,

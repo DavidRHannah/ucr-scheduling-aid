@@ -414,11 +414,15 @@ describe("DEFAULT_PREFERENCES", () => {
 
 describe("rankSchedules", () => {
   it("orders higher scores first", () => {
-    const good = makeSchedule({ activeDays: ["M"], groups: [] });
-    const bad = makeSchedule({ activeDays: ["M", "T", "W", "R", "F"], groups: [] });
+    // Both schedules have identical activeDays so the tie-breaker cannot
+    // decide the order by itself; only a genuine score difference (from
+    // earliestStart relative to basePrefs' start threshold) can.
+    const good = makeSchedule({ earliestStart: "09:00", activeDays: ["M"], groups: [] });
+    const bad = makeSchedule({ earliestStart: "06:00", activeDays: ["M"], groups: [] });
     const ranked = rankSchedules([bad, good], basePrefs);
     expect(ranked[0].schedule).toBe(good);
     expect(ranked[0].originalIndex).toBe(1);
+    expect(ranked[0].score).not.toBe(ranked[1].score);
   });
 
   it("NEVER removes a combination, whatever the preferences", () => {

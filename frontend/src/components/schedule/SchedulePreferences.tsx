@@ -66,10 +66,14 @@ export function SchedulePreferences({
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs text-gray-500">
-          {visibleCount} schedule{visibleCount === 1 ? "" : "s"}
-          {hiddenCount > 0 && ` - ${hiddenCount} hidden by filters`}
-        </p>
+        {visibleCount > 0 || hiddenCount > 0 ? (
+          <p className="text-xs text-gray-500">
+            {visibleCount} schedule{visibleCount === 1 ? "" : "s"}
+            {hiddenCount > 0 && ` - ${hiddenCount} hidden by filters`}
+          </p>
+        ) : (
+          <span />
+        )}
         {!isDefaultPreferences(preferences) && (
           <Button
             variant="ghost"

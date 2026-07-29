@@ -32,8 +32,7 @@ export function NoResultsPanel({
           {filteredToZero ? (
             <div className="space-y-2">
               <h2 className="font-semibold text-amber-900">
-                {totalGenerated} schedule{totalGenerated === 1 ? "" : "s"} hidden by your Open
-                Sections filters
+                {totalGenerated} schedule{totalGenerated === 1 ? "" : "s"} hidden by your Filters
               </h2>
               <p className="mt-1 text-sm text-amber-800">
                 Every conflict-free combination includes a closed or waitlisted section that
@@ -46,7 +45,7 @@ export function NoResultsPanel({
                 className="border-amber-400 bg-white text-amber-900 hover:bg-amber-50"
                 onClick={onClearFilters}
               >
-                Clear open-sections filters
+                Clear filters
               </Button>
             </div>
           ) : (

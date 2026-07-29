@@ -78,7 +78,16 @@ export default function ScheduleBuilder() {
     [pinnedSections],
   );
   const ranked = useScheduleRanking(combinations, preferences, pinnedSectionIds);
-  const current = ranked[selectedIndex];
+  /**
+   * Clamped at the point of use so a preference/filter change that shrinks
+   * `ranked` (e.g. ticking a Filters checkbox while a later index is
+   * selected) never produces a render pass where `current` is undefined but
+   * `ranked.length` is still > 0. See Finding 1: without this, the result
+   * pane could go blank with no visible way to recover.
+   */
+  const clampedIndex =
+    ranked.length === 0 ? 0 : Math.min(selectedIndex, ranked.length - 1);
+  const current = ranked[clampedIndex];
   const currentSections = current
     ? current.schedule.groups.flatMap((group) => group.sections)
     : pinnedSections;
@@ -389,10 +398,10 @@ export default function ScheduleBuilder() {
               >
                 <RankedResultHeader
                   result={current}
-                  position={selectedIndex + 1}
+                  position={clampedIndex + 1}
                   total={ranked.length}
-                  onPrevious={() => setSelectedIndex((i) => Math.max(0, i - 1))}
-                  onNext={() => setSelectedIndex((i) => Math.min(ranked.length - 1, i + 1))}
+                  onPrevious={() => setSelectedIndex(Math.max(0, clampedIndex - 1))}
+                  onNext={() => setSelectedIndex(Math.min(ranked.length - 1, clampedIndex + 1))}
                 />
 
                 <WeeklyCalendar sections={currentSections} />
@@ -400,7 +409,7 @@ export default function ScheduleBuilder() {
 
                 <AlternativesStrip
                   results={ranked}
-                  selectedIndex={selectedIndex}
+                  selectedIndex={clampedIndex}
                   onSelect={setSelectedIndex}
                 />
 

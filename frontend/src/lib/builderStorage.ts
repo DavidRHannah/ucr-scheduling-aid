@@ -1,5 +1,15 @@
 import type { CourseInfo, Section } from "@/lib/api";
-import type { RankingPreferences } from "@/lib/scheduleRanking";
+import type { GapMode, RankingPreferences } from "@/lib/scheduleRanking";
+import type { WeekDay } from "@/lib/calendarLayout";
+
+/**
+ * The full weekday key set. Intentionally not derived from `WEEK_DAYS`
+ * (`@/lib/calendarLayout`), which only covers Mon-Fri for calendar-grid
+ * rendering purposes -- validating against it here would reject a
+ * legitimately stored Saturday/Sunday preference.
+ */
+const VALID_WEEK_DAYS: readonly WeekDay[] = ["M", "T", "W", "R", "F", "S", "U"];
+const VALID_GAP_MODES: readonly GapMode[] = ["tight", "none"];
 
 /**
  * Bump the relevant constant when its stored shape changes. Payloads carrying
@@ -97,8 +107,18 @@ export function parsePreferences(raw: string | null): RankingPreferences | null 
   ) {
     return null;
   }
-  if (typeof candidate.gapMode !== "string") return null;
-  if (!Array.isArray(candidate.preferredDays)) return null;
+  if (
+    typeof candidate.gapMode !== "string" ||
+    !VALID_GAP_MODES.includes(candidate.gapMode as GapMode)
+  ) {
+    return null;
+  }
+  if (
+    !Array.isArray(candidate.preferredDays) ||
+    !candidate.preferredDays.every((d) => VALID_WEEK_DAYS.includes(d as WeekDay))
+  ) {
+    return null;
+  }
   if (typeof candidate.hideClosedSections !== "boolean") return null;
   if (typeof candidate.hideWaitlistedSections !== "boolean") return null;
 
