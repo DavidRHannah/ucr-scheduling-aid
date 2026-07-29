@@ -1,12 +1,20 @@
 import { AlertCircle } from "lucide-react";
 import type { GeneratedSchedule } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 
 interface NoResultsPanelProps {
   nearMisses: GeneratedSchedule[];
   isLoading: boolean;
+  pinnedCount: number;
+  onClearPins: () => void;
 }
 
-export function NoResultsPanel({ nearMisses, isLoading }: NoResultsPanelProps) {
+export function NoResultsPanel({
+  nearMisses,
+  isLoading,
+  pinnedCount,
+  onClearPins,
+}: NoResultsPanelProps) {
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
       <div className="flex items-start gap-3">
@@ -21,6 +29,25 @@ export function NoResultsPanel({ nearMisses, isLoading }: NoResultsPanelProps) {
               collision.
             </p>
           </div>
+
+          {pinnedCount > 0 && (
+            <div className="space-y-2 rounded-md border border-amber-300 bg-amber-100/60 p-3">
+              <p className="text-sm text-amber-900">
+                You have {pinnedCount} pinned section{pinnedCount === 1 ? "" : "s"}. A pinned
+                section can constrain the result, and pins persist across reloads, so one may no
+                longer be offered this term after a catalog update.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-amber-400 bg-white text-amber-900 hover:bg-amber-50"
+                onClick={onClearPins}
+              >
+                Clear all {pinnedCount} pin{pinnedCount === 1 ? "" : "s"}
+              </Button>
+            </div>
+          )}
 
           {isLoading && <p className="text-sm text-amber-700">Checking closest options...</p>}
 
@@ -40,7 +67,7 @@ export function NoResultsPanel({ nearMisses, isLoading }: NoResultsPanelProps) {
             </div>
           )}
 
-          {!isLoading && nearMisses.length === 0 && (
+          {!isLoading && nearMisses.length === 0 && pinnedCount === 0 && (
             <p className="text-sm text-amber-800">
               Try removing a course, or check the Course Catalog for other sections.
             </p>

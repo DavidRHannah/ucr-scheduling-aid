@@ -28,6 +28,8 @@ function makeSection(id: string): Section {
     sectionNumber: "001",
     crn: "12345",
     termCode: "202540",
+    courseId: { _id: "c1" },
+    scheduleType: { code: "LEC" },
   } as unknown as Section;
 }
 
@@ -92,6 +94,24 @@ describe("serializeBuilderState / parseBuilderState", () => {
   it("returns null for JSON null", () => {
     expect(parseBuilderState("null")).toBeNull();
   });
+
+  it("returns null when a course is missing _id", () => {
+    const raw = JSON.stringify({
+      version: 1,
+      courses: [{ subject: "CS", courseNumber: "010A" }],
+      pins: [],
+    });
+    expect(parseBuilderState(raw)).toBeNull();
+  });
+
+  it("returns null when a pin is missing courseId", () => {
+    const raw = JSON.stringify({
+      version: 1,
+      courses: [],
+      pins: [{ _id: "s1", scheduleType: { code: "LEC" } }],
+    });
+    expect(parseBuilderState(raw)).toBeNull();
+  });
 });
 
 describe("serializePreferences / parsePreferences", () => {
@@ -134,6 +154,14 @@ describe("serializePreferences / parsePreferences", () => {
     const raw = JSON.stringify({
       version: 1,
       preferences: { startThresholdMinutes: 540, gapMode: "lunch" },
+    });
+    expect(parsePreferences(raw)).toBeNull();
+  });
+
+  it("returns null when weights is an array", () => {
+    const raw = JSON.stringify({
+      version: 1,
+      preferences: { ...samplePreferences, weights: [] },
     });
     expect(parsePreferences(raw)).toBeNull();
   });

@@ -202,6 +202,8 @@ export default function ScheduleBuilder() {
     });
   };
 
+  const handleClearPins = () => setPinnedSections([]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!current) return;
@@ -253,7 +255,12 @@ export default function ScheduleBuilder() {
         )}
 
         {!isGenerating && hasGenerated && combinations.length === 0 && (
-          <NoResultsPanel nearMisses={nearMisses} isLoading={false} />
+          <NoResultsPanel
+            nearMisses={nearMisses}
+            isLoading={false}
+            pinnedCount={pinnedSections.length}
+            onClearPins={handleClearPins}
+          />
         )}
 
         {!isGenerating && current && (

@@ -2,11 +2,14 @@ import type { CourseInfo, Section } from "@/lib/api";
 import type { RankingPreferences } from "@/lib/scheduleRanking";
 
 /**
- * Bump when the stored shape changes. Payloads carrying any other version are
- * discarded on read, so a shape change can never surface as a parse crash in
- * the builder.
+ * Bump the relevant constant when its stored shape changes. Payloads carrying
+ * any other version are discarded on read, so a shape change can never
+ * surface as a parse crash in the builder. Kept separate so a builder-state
+ * shape change (e.g. to Section) doesn't discard a user's saved preferences,
+ * and vice versa.
  */
-const STORAGE_VERSION = 1;
+const BUILDER_STATE_VERSION = 1;
+const PREFERENCES_VERSION = 1;
 
 const BUILDER_STATE_KEY_PREFIX = "builderState:";
 const PREFERENCES_KEY = "builderPreferences";
@@ -32,7 +35,7 @@ function parseJson(raw: string | null): Record<string, unknown> | null {
 
 export function serializeBuilderState(state: BuilderState): string {
   return JSON.stringify({
-    version: STORAGE_VERSION,
+    version: BUILDER_STATE_VERSION,
     courses: state.courses,
     pins: state.pins,
   });
@@ -41,15 +44,33 @@ export function serializeBuilderState(state: BuilderState): string {
 /**
  * Returns null for absent, malformed, or version-mismatched input. Never throws.
  *
- * Only the outer shape is validated: courses and pins are checked to be arrays,
- * not deep-validated element by element. The version guard is what protects
- * against shape drift, and deep validation would cost more than it saves.
+ * The outer shape is validated (courses/pins are arrays), and each element is
+ * shallow-checked for only the fields the app actually dereferences without a
+ * guard elsewhere (`courseId._id` and `scheduleType.code` on pins, `_id` on
+ * both) — not deep-validated in full. The version guard is the primary
+ * defense against shape drift; this element check exists so a missed version
+ * bump fails closed (state is dropped) instead of throwing on click and
+ * persisting the broken state across reloads.
  */
 export function parseBuilderState(raw: string | null): BuilderState | null {
   const record = parseJson(raw);
   if (!record) return null;
-  if (record.version !== STORAGE_VERSION) return null;
+  if (record.version !== BUILDER_STATE_VERSION) return null;
   if (!Array.isArray(record.courses) || !Array.isArray(record.pins)) return null;
+
+  const coursesOk = record.courses.every(
+    (c) => typeof (c as CourseInfo)?._id === "string",
+  );
+  const pinsOk = record.pins.every((s) => {
+    const section = s as Section;
+    return (
+      typeof section?._id === "string" &&
+      typeof section?.courseId?._id === "string" &&
+      typeof section?.scheduleType?.code === "string"
+    );
+  });
+  if (!coursesOk || !pinsOk) return null;
+
   return {
     courses: record.courses as CourseInfo[],
     pins: record.pins as Section[],
@@ -57,14 +78,14 @@ export function parseBuilderState(raw: string | null): BuilderState | null {
 }
 
 export function serializePreferences(preferences: RankingPreferences): string {
-  return JSON.stringify({ version: STORAGE_VERSION, preferences });
+  return JSON.stringify({ version: PREFERENCES_VERSION, preferences });
 }
 
 /** Returns null for absent, malformed, or version-mismatched input. Never throws. */
 export function parsePreferences(raw: string | null): RankingPreferences | null {
   const record = parseJson(raw);
   if (!record) return null;
-  if (record.version !== STORAGE_VERSION) return null;
+  if (record.version !== PREFERENCES_VERSION) return null;
 
   const preferences = record.preferences;
   if (typeof preferences !== "object" || preferences === null) return null;
@@ -72,7 +93,13 @@ export function parsePreferences(raw: string | null): RankingPreferences | null 
   const candidate = preferences as Record<string, unknown>;
   if (typeof candidate.startThresholdMinutes !== "number") return null;
   if (typeof candidate.gapMode !== "string") return null;
-  if (typeof candidate.weights !== "object" || candidate.weights === null) return null;
+  if (
+    typeof candidate.weights !== "object" ||
+    candidate.weights === null ||
+    Array.isArray(candidate.weights)
+  ) {
+    return null;
+  }
 
   return preferences as RankingPreferences;
 }

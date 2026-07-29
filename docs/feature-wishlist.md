@@ -86,7 +86,7 @@ Worth noting on priority: a student builds a schedule roughly once a quarter and
 
 ## Smaller QOL items
 
-- **Undo/confirm when removing a course from the builder.** `handleRemoveCourse` (`ScheduleBuilder.tsx`, ~line 143) removes instantly with no confirmation — inconsistent with `SavedSchedules.tsx`, which uses `confirm()` before deleting. Builder state now persists across reloads (`frontend/src/lib/builderStorage.ts`), so a misclick is recoverable as long as the user doesn't reload before re-adding the course — but removal within a session is still instant and unconfirmed, with no undo.
+- **Undo/confirm when removing a course from the builder.** `handleRemoveCourse` (`ScheduleBuilder.tsx`, ~line 143) removes instantly with no confirmation — inconsistent with `SavedSchedules.tsx`, which uses `confirm()` before deleting. Builder state now persists across reloads (`frontend/src/lib/builderStorage.ts`), which makes this worse, not better: the removal is written to storage immediately, so a misclick is durable rather than recoverable — reloading after an accidental removal will not bring the course back. Removal within a session is still instant and unconfirmed, with no undo.
 - **Running credit-hour total.** Neither `CourseSearchPanel.tsx` nor the builder shows total credits across selected courses; helps students catch an overload before generating.
 - **"Open sections only" filter** in search, to cut noise on popular courses with many closed sections.
 - **"Save as" / duplicate on Saved Schedules.** Currently only select and delete are supported, so there's no way to branch a saved schedule into a variant without overwriting. Cheap once the load/edit flow above exists — it reuses `createSchedule` with the loaded sections.
