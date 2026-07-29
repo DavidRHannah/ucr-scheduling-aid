@@ -9,13 +9,12 @@ import {
   collectSections,
   availabilitySubscore,
   filterSchedules,
-  normalizeWeights,
+  activeDimensions,
   scoreSchedule,
   rankSchedules,
   buildChips,
-  PRESETS,
   DEFAULT_PREFERENCES,
-  matchPreset,
+  isDefaultPreferences,
   type RankingPreferences,
   type Subscores,
 } from "./scheduleRanking";
@@ -140,7 +139,6 @@ const basePrefs: RankingPreferences = {
   preferredDays: [],
   hideClosedSections: false,
   hideWaitlistedSections: false,
-  weights: { start: 1 / 3, days: 1 / 3, gaps: 1 / 3 },
 };
 
 /** Builds a schedule whose sections carry the given statuses (no ids). */
@@ -253,61 +251,164 @@ describe("filterSchedules", () => {
   });
 });
 
-describe("normalizeWeights", () => {
-  it("leaves weights summing to 1 unchanged", () => {
-    const result = normalizeWeights({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 }, "tight", true);
-    expect(result.start).toBeCloseTo(1 / 3);
+describe("startSubscore, no preference", () => {
+  it("scores 1 for any schedule when the threshold is null", () => {
+    expect(startSubscore(makeSchedule({ earliestStart: "07:00" }), null)).toBe(1);
+    expect(startSubscore(makeSchedule({ earliestStart: "15:00" }), null)).toBe(1);
+  });
+});
+
+describe("activeDimensions", () => {
+  it("is empty when nothing is set", () => {
+    expect(activeDimensions(DEFAULT_PREFERENCES)).toEqual([]);
   });
 
-  it("rescales weights that do not sum to 1", () => {
-    const result = normalizeWeights({ start: 2, days: 2, gaps: 2 }, "tight", true);
-    expect(result.start).toBeCloseTo(1 / 3);
+  it("activates start only when the threshold is not null", () => {
+    expect(activeDimensions({ ...DEFAULT_PREFERENCES, startThresholdMinutes: 540 })).toEqual([
+      "start",
+    ]);
   });
 
-  it("zeroes the gap weight and redistributes when mode is none", () => {
-    const result = normalizeWeights({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 }, "none", true);
-    expect(result.gaps).toBe(0);
-    expect(result.start).toBeCloseTo(0.5);
-    expect(result.start + result.days).toBeCloseTo(1);
+  it("activates days only when at least one day is preferred", () => {
+    expect(activeDimensions({ ...DEFAULT_PREFERENCES, preferredDays: ["M"] })).toEqual(["days"]);
   });
 
-  it("zeroes the days weight and redistributes when no preferred days are set", () => {
-    const result = normalizeWeights({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 }, "tight", false);
-    expect(result.days).toBe(0);
-    expect(result.start).toBeCloseTo(0.5);
-    expect(result.start + result.gaps).toBeCloseTo(1);
+  it("activates gaps only in tight mode", () => {
+    expect(activeDimensions({ ...DEFAULT_PREFERENCES, gapMode: "tight" })).toEqual(["gaps"]);
   });
 
-  it("falls back to equal weights when everything is zero", () => {
-    const result = normalizeWeights({ start: 0, days: 0, gaps: 0 }, "tight", true);
-    expect(result.start).toBeCloseTo(1 / 3);
-  });
-
-  it("falls back to equal weights when both gaps and days are zeroed out", () => {
-    const result = normalizeWeights({ start: 0, days: 1, gaps: 1 }, "none", false);
-    expect(result).toEqual({ start: 1 / 3, days: 1 / 3, gaps: 1 / 3 });
+  it("activates every dimension that is set", () => {
+    const prefs: RankingPreferences = {
+      ...DEFAULT_PREFERENCES,
+      startThresholdMinutes: 540,
+      preferredDays: ["M"],
+      gapMode: "tight",
+    };
+    expect(activeDimensions(prefs)).toEqual(["start", "days", "gaps"]);
   });
 });
 
 describe("scoreSchedule", () => {
-  it("returns 100 when every subscore is perfect", () => {
-    const perfect = makeSchedule({
-      earliestStart: "12:00",
-      activeDays: ["M"],
-      totalGapMinutes: 0,
-      groups: [{ sections: [{ status: "Open", blocks: [] }] }],
-    } as unknown as Partial<GeneratedSchedule>);
-    expect(scoreSchedule(perfect, basePrefs).score).toBe(100);
+  it("returns a null score when no dimension is active", () => {
+    expect(scoreSchedule(makeSchedule(), DEFAULT_PREFERENCES).score).toBeNull();
   });
 
-  it("returns 0 when every subscore is zero", () => {
-    const worst = makeSchedule({
-      earliestStart: "05:00",
-      activeDays: ["M", "T", "W", "R", "F"],
-      totalGapMinutes: 900,
-      groups: [{ sections: [{ status: "Closed", blocks: [] }] }],
-    } as unknown as Partial<GeneratedSchedule>);
-    expect(scoreSchedule(worst, { ...basePrefs, gapMode: "tight" }).score).toBe(0);
+  it("still reports every subscore when the score is null", () => {
+    const { subscores } = scoreSchedule(makeSchedule(), DEFAULT_PREFERENCES);
+    expect(subscores.start).toBe(1);
+    expect(subscores.days).toBe(1);
+    expect(subscores.gaps).toBe(1);
+    expect(subscores.availability).toBe(1);
+  });
+
+  it("equals the sole active dimension's subscore", () => {
+    // earliestStart 08:00 is 90 minutes before a 09:30 threshold, so the
+    // start subscore is 1 - 90/180 = 0.5 and start is the only active
+    // dimension.
+    const schedule = makeSchedule({ earliestStart: "08:00" });
+    const prefs = { ...DEFAULT_PREFERENCES, startThresholdMinutes: 570 };
+    expect(scoreSchedule(schedule, prefs).score).toBe(50);
+  });
+
+  it("averages two active dimensions equally", () => {
+    // start subscore 0.5 (as above); days subscore 0 because every active
+    // day (M, W, F) falls outside the preferred set. Mean is 0.25.
+    const schedule = makeSchedule({ earliestStart: "08:00", activeDays: ["M", "W", "F"] });
+    const prefs: RankingPreferences = {
+      ...DEFAULT_PREFERENCES,
+      startThresholdMinutes: 570,
+      preferredDays: ["T"],
+    };
+    expect(scoreSchedule(schedule, prefs).score).toBe(25);
+  });
+
+  it("returns 100 when every active subscore is perfect", () => {
+    const schedule = makeSchedule({
+      earliestStart: "10:00",
+      activeDays: ["M", "W"],
+      totalGapMinutes: 0,
+    });
+    const prefs: RankingPreferences = {
+      startThresholdMinutes: 540,
+      gapMode: "tight",
+      preferredDays: ["M", "W"],
+      hideClosedSections: false,
+      hideWaitlistedSections: false,
+    };
+    expect(scoreSchedule(schedule, prefs).score).toBe(100);
+  });
+});
+
+describe("preferred days influence, the weights regression", () => {
+  it("ranks a schedule inside the preferred day set above one outside it", () => {
+    // Regression test for the removed weights vector: when days is the only
+    // active dimension it must fully determine the order. Under the old
+    // weighted model this pair could tie or invert, because a preset left
+    // days at roughly 11 percent of the score.
+    const inside = makeSchedule({ activeDays: ["M", "W"], daysOff: ["T", "R", "F"] });
+    const outside = makeSchedule({ activeDays: ["T", "R"], daysOff: ["M", "W", "F"] });
+    const prefs: RankingPreferences = { ...DEFAULT_PREFERENCES, preferredDays: ["M", "W"] };
+
+    const ranked = rankSchedules([outside, inside], prefs);
+
+    expect(ranked[0].schedule).toBe(inside);
+    expect(ranked[0].score).toBe(100);
+    expect(ranked[1].score).toBe(0);
+  });
+});
+
+describe("rankSchedules with a null score", () => {
+  it("does not corrupt the order when every score is null", () => {
+    const a = makeSchedule({ activeDays: ["M"], latestEnd: "12:00" });
+    const b = makeSchedule({ activeDays: ["M", "W", "F"], latestEnd: "17:00" });
+    const ranked = rankSchedules([b, a], DEFAULT_PREFERENCES);
+
+    // Falls through to the tie-breakers: fewer active days wins.
+    expect(ranked).toHaveLength(2);
+    expect(ranked[0].schedule).toBe(a);
+    expect(ranked[0].score).toBeNull();
+    expect(ranked[1].score).toBeNull();
+  });
+});
+
+describe("isDefaultPreferences", () => {
+  it("is true for DEFAULT_PREFERENCES", () => {
+    expect(isDefaultPreferences(DEFAULT_PREFERENCES)).toBe(true);
+  });
+
+  it("is false when a start threshold is set", () => {
+    expect(
+      isDefaultPreferences({ ...DEFAULT_PREFERENCES, startThresholdMinutes: 540 }),
+    ).toBe(false);
+  });
+
+  it("is false when a day is preferred", () => {
+    expect(isDefaultPreferences({ ...DEFAULT_PREFERENCES, preferredDays: ["M"] })).toBe(false);
+  });
+
+  it("is false in tight gap mode", () => {
+    expect(isDefaultPreferences({ ...DEFAULT_PREFERENCES, gapMode: "tight" })).toBe(false);
+  });
+
+  it("is false when either filter is on", () => {
+    expect(
+      isDefaultPreferences({ ...DEFAULT_PREFERENCES, hideClosedSections: true }),
+    ).toBe(false);
+    expect(
+      isDefaultPreferences({ ...DEFAULT_PREFERENCES, hideWaitlistedSections: true }),
+    ).toBe(false);
+  });
+});
+
+describe("DEFAULT_PREFERENCES", () => {
+  it("sets no ranking preference and no filters", () => {
+    expect(DEFAULT_PREFERENCES).toEqual({
+      startThresholdMinutes: null,
+      gapMode: "none",
+      preferredDays: [],
+      hideClosedSections: false,
+      hideWaitlistedSections: false,
+    });
   });
 });
 
@@ -329,7 +430,7 @@ describe("rankSchedules", () => {
     const configs: RankingPreferences[] = [
       basePrefs,
       { ...basePrefs, gapMode: "tight" },
-      { ...basePrefs, weights: { start: 0, days: 0, gaps: 1 } },
+      { ...basePrefs, preferredDays: ["M"] },
       { ...basePrefs, startThresholdMinutes: 1200 },
       { ...basePrefs, hideClosedSections: true, hideWaitlistedSections: true },
     ];
@@ -349,11 +450,8 @@ describe("rankSchedules", () => {
       activeDays: ["M"],
       groups: [{ sections: [{ status: "Open", blocks: [] }] }],
     } as unknown as Partial<GeneratedSchedule>);
-    const zeroWeights: RankingPreferences = {
-      ...basePrefs,
-      weights: { start: 0, days: 0, gaps: 0 },
-    };
-    const ranked = rankSchedules([lowAvailability, highAvailability], zeroWeights);
+    const noActiveDimensions: RankingPreferences = DEFAULT_PREFERENCES;
+    const ranked = rankSchedules([lowAvailability, highAvailability], noActiveDimensions);
     expect(ranked[0].schedule).toBe(highAvailability);
   });
 
@@ -449,59 +547,13 @@ describe("buildChips", () => {
     expect(chips.length).toBeLessThanOrEqual(4);
     expect(chips[chips.length - 1].tone).toBe("caution");
   });
-});
 
-describe("presets", () => {
-  it("defines the three presets from the spec", () => {
-    expect(Object.keys(PRESETS).sort()).toEqual(["balanced", "compactWeek", "sleepIn"]);
-  });
-
-  it("sets Sleep In to a 10:00 threshold with no gap preference and no day/filter preference", () => {
-    expect(PRESETS.sleepIn.startThresholdMinutes).toBe(600);
-    expect(PRESETS.sleepIn.gapMode).toBe("none");
-    expect(PRESETS.sleepIn.preferredDays).toEqual([]);
-    expect(PRESETS.sleepIn.hideClosedSections).toBe(false);
-    expect(PRESETS.sleepIn.hideWaitlistedSections).toBe(false);
-    expect(PRESETS.sleepIn.weights.start).toBe(0.8);
-  });
-
-  it("sets Compact Week to weight days and gaps most heavily with tight gaps", () => {
-    expect(PRESETS.compactWeek.gapMode).toBe("tight");
-    expect(PRESETS.compactWeek.weights.days).toBe(0.4);
-    expect(PRESETS.compactWeek.weights.gaps).toBe(0.4);
-    expect(PRESETS.compactWeek.startThresholdMinutes).toBe(480);
-  });
-
-  it("sets Balanced to even weights with no gap preference", () => {
-    expect(PRESETS.balanced.gapMode).toBe("none");
-    expect(PRESETS.balanced.startThresholdMinutes).toBe(540);
-    expect(PRESETS.balanced.weights).toEqual({
-      start: 0.34,
-      days: 0.33,
-      gaps: 0.33,
-    });
-  });
-
-  it("defaults to Balanced", () => {
-    expect(DEFAULT_PREFERENCES).toEqual(PRESETS.balanced);
-  });
-});
-
-describe("matchPreset", () => {
-  it("identifies preferences equal to a preset", () => {
-    expect(matchPreset(PRESETS.sleepIn)).toBe("sleepIn");
-    expect(matchPreset(PRESETS.balanced)).toBe("balanced");
-  });
-
-  it("returns null for customized preferences", () => {
-    expect(matchPreset({ ...PRESETS.balanced, startThresholdMinutes: 660 })).toBeNull();
-  });
-
-  it("returns null when a filter toggle differs from the preset", () => {
-    expect(matchPreset({ ...PRESETS.balanced, hideClosedSections: true })).toBeNull();
-  });
-
-  it("returns null when the preferred day set differs from the preset", () => {
-    expect(matchPreset({ ...PRESETS.balanced, preferredDays: ["M"] })).toBeNull();
+  it("omits the start chip when no start threshold is set", () => {
+    const chips = buildChips(
+      makeSchedule({ earliestStart: "07:00" }),
+      perfectSubscores,
+      DEFAULT_PREFERENCES,
+    );
+    expect(chips.some((chip) => chip.label.startsWith("No classes before"))).toBe(false);
   });
 });

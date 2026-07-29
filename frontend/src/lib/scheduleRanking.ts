@@ -23,7 +23,11 @@ export function isFullyAsync(schedule: GeneratedSchedule): boolean {
   return schedule.activeDays.length === 0;
 }
 
-export function startSubscore(schedule: GeneratedSchedule, thresholdMinutes: number): number {
+export function startSubscore(
+  schedule: GeneratedSchedule,
+  thresholdMinutes: number | null,
+): number {
+  if (thresholdMinutes === null) return 1;
   if (isFullyAsync(schedule)) return 1;
   const earliest = timeToMinutes(schedule.earliestStart);
   if (earliest >= thresholdMinutes) return 1;
@@ -59,19 +63,13 @@ export function gapsSubscore(schedule: GeneratedSchedule, mode: GapMode): number
   return clamp01(1 - schedule.totalGapMinutes / TIGHT_GAP_CAP_MINUTES);
 }
 
-export interface RankingWeights {
-  start: number;
-  days: number;
-  gaps: number;
-}
-
 export interface RankingPreferences {
-  startThresholdMinutes: number;
+  /** null means no preference, which leaves the start dimension inactive. */
+  startThresholdMinutes: number | null;
   gapMode: GapMode;
   preferredDays: WeekDay[];
   hideClosedSections: boolean;
   hideWaitlistedSections: boolean;
-  weights: RankingWeights;
 }
 
 export interface Subscores {
@@ -84,7 +82,7 @@ export interface Subscores {
 export interface ScoredSchedule {
   schedule: GeneratedSchedule;
   originalIndex: number;
-  score: number;
+  score: number | null;
   subscores: Subscores;
 }
 
@@ -133,38 +131,31 @@ export function filterSchedules(
 }
 
 /**
- * Weights are stored as raw importances and normalized here, so presets and
- * arbitrary user edits obey one rule. "none" gap mode and an empty preferred
- * day set are both special cases of the same rule: the corresponding
- * weight drops to zero and the remainder renormalizes.
+ * The dimensions currently contributing to the score. A dimension the
+ * student has not set contributes nothing at all, rather than a muted share
+ * of a hidden weight vector -- so every control visible in the panel carries
+ * equal and predictable influence over the ranking.
  */
-export function normalizeWeights(
-  weights: RankingWeights,
-  gapMode: GapMode,
-  hasPreferredDays: boolean,
-): RankingWeights {
-  const effective: RankingWeights = {
-    start: Math.max(0, weights.start),
-    days: hasPreferredDays ? Math.max(0, weights.days) : 0,
-    gaps: gapMode === "none" ? 0 : Math.max(0, weights.gaps),
-  };
-
-  const sum = effective.start + effective.days + effective.gaps;
-  if (sum === 0) {
-    return { start: 1 / 3, days: 1 / 3, gaps: 1 / 3 };
-  }
-
-  return {
-    start: effective.start / sum,
-    days: effective.days / sum,
-    gaps: effective.gaps / sum,
-  };
+export function activeDimensions(
+  prefs: RankingPreferences,
+): Array<"start" | "days" | "gaps"> {
+  const active: Array<"start" | "days" | "gaps"> = [];
+  if (prefs.startThresholdMinutes !== null) active.push("start");
+  if (prefs.preferredDays.length > 0) active.push("days");
+  if (prefs.gapMode === "tight") active.push("gaps");
+  return active;
 }
 
+/**
+ * Scores a schedule as the unweighted mean of the active dimensions. Returns
+ * a null score when nothing is set: every schedule would otherwise show an
+ * identical, fabricated 100. Subscores are always returned in full, since
+ * availability still breaks ties and the chips read from them.
+ */
 export function scoreSchedule(
   schedule: GeneratedSchedule,
   prefs: RankingPreferences,
-): { score: number; subscores: Subscores } {
+): { score: number | null; subscores: Subscores } {
   const subscores: Subscores = {
     start: startSubscore(schedule, prefs.startThresholdMinutes),
     days: daysSubscore(schedule, prefs.preferredDays),
@@ -172,13 +163,11 @@ export function scoreSchedule(
     availability: availabilitySubscore(schedule),
   };
 
-  const weights = normalizeWeights(prefs.weights, prefs.gapMode, prefs.preferredDays.length > 0);
-  const weighted =
-    subscores.start * weights.start +
-    subscores.days * weights.days +
-    subscores.gaps * weights.gaps;
+  const active = activeDimensions(prefs);
+  if (active.length === 0) return { score: null, subscores };
 
-  return { score: Math.round(clamp01(weighted) * 100), subscores };
+  const mean = active.reduce((sum, key) => sum + subscores[key], 0) / active.length;
+  return { score: Math.round(clamp01(mean) * 100), subscores };
 }
 
 /**
@@ -198,7 +187,12 @@ export function rankSchedules(
   });
 
   return scored.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
+    // score is null for every schedule or for none, since it depends only on
+    // which dimensions are active. Guard anyway: b.score - a.score on two
+    // nulls yields NaN, which would corrupt the sort.
+    if (a.score !== null && b.score !== null && b.score !== a.score) {
+      return b.score - a.score;
+    }
     if (b.subscores.availability !== a.subscores.availability) {
       return b.subscores.availability - a.subscores.availability;
     }
@@ -241,7 +235,11 @@ export function buildChips(
   const positive: ExplanationChip[] = [];
   const cautions: ExplanationChip[] = [];
 
-  if (subscores.start >= CHIP_STRENGTH_THRESHOLD && !isFullyAsync(schedule)) {
+  if (
+    prefs.startThresholdMinutes !== null &&
+    subscores.start >= CHIP_STRENGTH_THRESHOLD &&
+    !isFullyAsync(schedule)
+  ) {
     positive.push({ label: `No classes before ${schedule.earliestStart}`, tone: "positive" });
   }
 
@@ -266,65 +264,26 @@ export function buildChips(
   return [...positive.slice(0, room), ...cautions];
 }
 
-export type PresetName = "sleepIn" | "compactWeek" | "balanced";
-
-export const PRESETS: Record<PresetName, RankingPreferences> = {
-  sleepIn: {
-    startThresholdMinutes: 10 * 60,
-    gapMode: "none",
-    preferredDays: [],
-    hideClosedSections: false,
-    hideWaitlistedSections: false,
-    weights: { start: 0.8, days: 0.1, gaps: 0.1 },
-  },
-  compactWeek: {
-    startThresholdMinutes: 8 * 60,
-    gapMode: "tight",
-    preferredDays: [],
-    hideClosedSections: false,
-    hideWaitlistedSections: false,
-    weights: { start: 0.2, days: 0.4, gaps: 0.4 },
-  },
-  balanced: {
-    startThresholdMinutes: 9 * 60,
-    gapMode: "none",
-    preferredDays: [],
-    hideClosedSections: false,
-    hideWaitlistedSections: false,
-    weights: { start: 0.34, days: 0.33, gaps: 0.33 },
-  },
+/**
+ * Nothing set. Every dimension is inactive, so a fresh builder ranks purely
+ * on the tie-breakers (open seats, then fewer days, then an earlier finish)
+ * and shows no score until the student expresses a preference.
+ */
+export const DEFAULT_PREFERENCES: RankingPreferences = {
+  startThresholdMinutes: null,
+  gapMode: "none",
+  preferredDays: [],
+  hideClosedSections: false,
+  hideWaitlistedSections: false,
 };
 
-export const PRESET_LABELS: Record<PresetName, string> = {
-  sleepIn: "Sleep In",
-  compactWeek: "Compact Week",
-  balanced: "Balanced",
-};
-
-export const DEFAULT_PREFERENCES: RankingPreferences = PRESETS.balanced;
-
-function sameDaySet(a: WeekDay[], b: WeekDay[]): boolean {
-  if (a.length !== b.length) return false;
-  const setB = new Set(b);
-  return a.every((day) => setB.has(day));
-}
-
-/** Returns the preset these preferences exactly match, or null if customized. */
-export function matchPreset(prefs: RankingPreferences): PresetName | null {
-  const names = Object.keys(PRESETS) as PresetName[];
+/** Drives the Reset control's visibility in the preferences panel. */
+export function isDefaultPreferences(prefs: RankingPreferences): boolean {
   return (
-    names.find((name) => {
-      const preset = PRESETS[name];
-      return (
-        preset.startThresholdMinutes === prefs.startThresholdMinutes &&
-        preset.gapMode === prefs.gapMode &&
-        preset.hideClosedSections === prefs.hideClosedSections &&
-        preset.hideWaitlistedSections === prefs.hideWaitlistedSections &&
-        sameDaySet(preset.preferredDays, prefs.preferredDays) &&
-        preset.weights.start === prefs.weights.start &&
-        preset.weights.days === prefs.weights.days &&
-        preset.weights.gaps === prefs.weights.gaps
-      );
-    }) ?? null
+    prefs.startThresholdMinutes === null &&
+    prefs.gapMode === "none" &&
+    prefs.preferredDays.length === 0 &&
+    !prefs.hideClosedSections &&
+    !prefs.hideWaitlistedSections
   );
 }
