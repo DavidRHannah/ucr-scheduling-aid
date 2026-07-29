@@ -3,6 +3,7 @@ import {
   WEEK_DAYS,
   getVisibleHourRange,
   placeBlocks,
+  assignBlockColumns,
 } from "@/lib/calendarLayout";
 
 const subjectColors = [
@@ -32,7 +33,7 @@ interface WeeklyCalendarProps {
 export function WeeklyCalendar({ sections }: WeeklyCalendarProps) {
   const { startHour, endHour } = getVisibleHourRange(sections);
   const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
-  const blocks = placeBlocks(sections, startHour);
+  const blocks = assignBlockColumns(placeBlocks(sections, startHour));
   const rowCount = (endHour - startHour) * 2;
 
   return (
@@ -81,25 +82,35 @@ export function WeeklyCalendar({ sections }: WeeklyCalendarProps) {
               .filter((b) => b.day === day.key)
               .map((b, i) => {
                 const colorClass = getSubjectColor(b.section.courseId.subject);
-                const meeting = b.section.meetingTimes.find((m) => m.weekDays.includes(day.key))!;
+                const meeting = b.section.meetingTimes.find((m) =>
+                  m.weekDays.includes(day.key),
+                )!;
+                // Only as many lines as the block's height can actually hold:
+                // one row is 30px, which fits a single line of text-xs.
+                const showTime = b.rowSpan >= 2;
+                const showRoom = b.rowSpan >= 3 && Boolean(meeting.buildingDescription);
                 return (
                   <div
                     key={`${b.section._id}-${i}`}
-                    className={`absolute inset-x-1 z-10 rounded-md border px-2 py-1 text-xs ${colorClass}`}
+                    className={`absolute z-10 overflow-hidden rounded-md border px-2 py-1 text-xs ${colorClass}`}
                     style={{
                       top: `${(b.startRow - 1) * 30}px`,
                       height: `${b.rowSpan * 30 - 4}px`,
+                      left: `calc(${(b.column / b.columnCount) * 100}% + 2px)`,
+                      width: `calc(${100 / b.columnCount}% - 4px)`,
                     }}
                   >
-                    <div className="font-semibold">
-                      {b.section.courseId.subject} {b.section.courseId.courseNumber}
+                    <div className="truncate font-semibold">
+                      {b.section.courseId.subject} {b.section.courseId.courseNumber}-
+                      {b.section.sectionNumber}
                     </div>
-                    <div>{b.section.sectionNumber}</div>
-                    <div>
-                      {meeting.startTime} - {meeting.endTime}
-                    </div>
-                    {meeting.buildingDescription && (
-                      <div>
+                    {showTime && (
+                      <div className="truncate">
+                        {meeting.startTime} - {meeting.endTime}
+                      </div>
+                    )}
+                    {showRoom && (
+                      <div className="truncate">
                         {meeting.buildingDescription} {meeting.room}
                       </div>
                     )}

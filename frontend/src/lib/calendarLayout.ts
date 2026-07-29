@@ -83,3 +83,77 @@ export function placeBlocks(sections: Section[], startHour: number): PlacedBlock
 
   return blocks;
 }
+
+export interface LaidOutBlock extends PlacedBlock {
+  /** Zero-based horizontal slot within the block's overlap cluster. */
+  column: number;
+  /** Total slots in that cluster. Shared by every block in it so widths align. */
+  columnCount: number;
+}
+
+/**
+ * Splits overlapping meetings into side-by-side columns.
+ *
+ * Blocks are grouped per day into clusters of transitively overlapping
+ * meetings, then greedily packed into the first column that is free. Every
+ * block in a cluster reports the same columnCount so their rendered widths
+ * line up even when one of them overlaps only part of the cluster.
+ */
+export function assignBlockColumns(blocks: PlacedBlock[]): LaidOutBlock[] {
+  const result: LaidOutBlock[] = [];
+
+  for (const { key: day } of WEEK_DAYS) {
+    const dayBlocks = blocks
+      .filter((b) => b.day === day)
+      .sort((a, b) => a.startRow - b.startRow || a.rowSpan - b.rowSpan);
+
+    let cluster: PlacedBlock[] = [];
+    let clusterEnd = 0;
+
+    const flushCluster = () => {
+      if (cluster.length === 0) return;
+
+      const columns: PlacedBlock[][] = [];
+      const columnOf = new Map<PlacedBlock, number>();
+
+      for (const block of cluster) {
+        let placed = false;
+        for (let c = 0; c < columns.length; c++) {
+          const last = columns[c][columns[c].length - 1];
+          if (last.startRow + last.rowSpan <= block.startRow) {
+            columns[c].push(block);
+            columnOf.set(block, c);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          columns.push([block]);
+          columnOf.set(block, columns.length - 1);
+        }
+      }
+
+      for (const block of cluster) {
+        result.push({
+          ...block,
+          column: columnOf.get(block) ?? 0,
+          columnCount: columns.length,
+        });
+      }
+
+      cluster = [];
+      clusterEnd = 0;
+    };
+
+    for (const block of dayBlocks) {
+      if (cluster.length > 0 && block.startRow >= clusterEnd) {
+        flushCluster();
+      }
+      cluster.push(block);
+      clusterEnd = Math.max(clusterEnd, block.startRow + block.rowSpan);
+    }
+    flushCluster();
+  }
+
+  return result;
+}

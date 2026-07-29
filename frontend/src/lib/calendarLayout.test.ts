@@ -4,6 +4,7 @@ import {
   timeToMinutes,
   getVisibleHourRange,
   placeBlocks,
+  assignBlockColumns,
   type PlacedBlock,
 } from "./calendarLayout";
 
@@ -118,5 +119,69 @@ describe("placeBlocks", () => {
     expect(blocks).toHaveLength(2);
     expect(blocks[1].startRow).toBe(13);
     expect(blocks[1].rowSpan).toBe(4);
+  });
+});
+
+describe("assignBlockColumns", () => {
+  function block(day: string, startRow: number, rowSpan: number): PlacedBlock {
+    return {
+      section: makeSection(`${day}-${startRow}`, []),
+      day: day as PlacedBlock["day"],
+      startRow,
+      rowSpan,
+    };
+  }
+
+  it("gives a lone block the full width of its day column", () => {
+    const [laid] = assignBlockColumns([block("M", 1, 2)]);
+    expect(laid.column).toBe(0);
+    expect(laid.columnCount).toBe(1);
+  });
+
+  it("splits two overlapping blocks into two side-by-side columns", () => {
+    const laid = assignBlockColumns([block("M", 1, 4), block("M", 2, 4)]);
+    expect(laid.map((b) => b.column)).toEqual([0, 1]);
+    expect(laid.every((b) => b.columnCount === 2)).toBe(true);
+  });
+
+  it("keeps sequential non-overlapping blocks at full width", () => {
+    const laid = assignBlockColumns([block("M", 1, 2), block("M", 3, 2)]);
+    expect(laid.every((b) => b.columnCount === 1)).toBe(true);
+    expect(laid.every((b) => b.column === 0)).toBe(true);
+  });
+
+  it("treats a block starting exactly when another ends as non-overlapping", () => {
+    const laid = assignBlockColumns([block("M", 1, 2), block("M", 3, 1)]);
+    expect(laid.every((b) => b.columnCount === 1)).toBe(true);
+  });
+
+  it("reuses a freed column for a later block in the same cluster", () => {
+    // Sorted order is B(1-2), A(1-6), C(3-4). B takes column 0, A is pushed to
+    // column 1, and C reuses column 0 because B has already ended by row 3.
+    const laid = assignBlockColumns([block("M", 1, 6), block("M", 1, 2), block("M", 3, 2)]);
+    const byStart = [...laid].sort((a, b) => a.startRow - b.startRow || a.rowSpan - b.rowSpan);
+    expect(byStart.map((b) => b.column)).toEqual([0, 1, 0]);
+    expect(laid.every((b) => b.columnCount === 2)).toBe(true);
+  });
+
+  it("gives every block in one cluster the same column count so widths align", () => {
+    const laid = assignBlockColumns([block("M", 1, 6), block("M", 2, 2), block("M", 3, 2)]);
+    expect(new Set(laid.map((b) => b.columnCount))).toEqual(new Set([3]));
+  });
+
+  it("scopes clusters per day so a Monday block never widens a Tuesday block", () => {
+    const laid = assignBlockColumns([block("M", 1, 4), block("M", 2, 4), block("T", 1, 4)]);
+    const tuesday = laid.find((b) => b.day === "T");
+    expect(tuesday?.columnCount).toBe(1);
+  });
+
+  it("starts a fresh cluster once a gap clears all previous blocks", () => {
+    const laid = assignBlockColumns([block("M", 1, 4), block("M", 2, 4), block("M", 20, 2)]);
+    const late = laid.find((b) => b.startRow === 20);
+    expect(late?.columnCount).toBe(1);
+  });
+
+  it("returns an empty array for no blocks", () => {
+    expect(assignBlockColumns([])).toEqual([]);
   });
 });
