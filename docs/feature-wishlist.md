@@ -16,14 +16,6 @@ Entries are ordered roughly by priority.
 
 # Features
 
-## Persist builder state across reloads
-
-**Problem:** `ScheduleBuilder.tsx` keeps `selectedCourses`/`pinnedSections` only in React `useState`. A refresh, an accidental back-button press, or navigating to another page silently discards everything with no warning or recovery. Losing twenty minutes of course picking to a stray click is the kind of thing that makes people stop trusting a tool.
-
-**Proposed approach:** Persist builder state to localStorage, following the pattern already established in `TermContext`/`AuthContext`/`Sidebar`. Key by `termCode` so switching terms and switching back restores the right selection. Decide whether generated `combinations` are persisted too or recomputed on load (recomputing is simpler and avoids staleness).
-
-**Related files:** `frontend/src/pages/ScheduleBuilder.tsx`, `frontend/src/context/TermContext.tsx` (localStorage pattern reference).
-
 ## Load a saved schedule into the Schedule Builder for continued editing
 
 **Problem:** A saved schedule is currently a dead end — `SavedSchedules.tsx` can list, preview, and delete schedules (via `api.getSchedules`/`api.deleteSchedule`), but there's no way to bring one back into the builder to keep refining it. The builder always starts blank.
@@ -33,7 +25,7 @@ Entries are ordered roughly by priority.
 - On the builder side, when `scheduleId` is present, fetch via `api.getScheduleById` (already defined in `api.ts`, currently unused) and hydrate `selectedCourses` by re-deriving each section's parent course (`section.courseId`).
 - Decide what happens to `pinnedSections`: a saved `Schedule` is just a flat `sectionIds: Section[]` list server-side, so pin/lock state isn't persisted and a load can't distinguish "pinned" from "generated" sections as they were when saved. Likely resolution: treat all loaded sections as pinned by default, letting the user unpin individually to let the generator vary them again.
 - Saving back: `handleSave`/`api.createSchedule` always creates a new schedule. An edit flow should offer "update this schedule" (via the already-unused `api.updateSchedule(id, body)`) versus "save as new," rather than silently duplicating.
-- Term handling: the builder's term comes from `TermContext`, and switching terms currently wipes builder state. Loading a schedule whose `termCode` differs from the active term needs to either switch the term context first or warn before hydrating.
+- Term handling: the builder's term comes from `TermContext`, and its term-change effect now loads that term's own saved state (`frontend/src/lib/builderStorage.ts`) rather than wiping everything. Loading a schedule whose `termCode` differs from the active term still needs to either switch the term context first or warn before hydrating, since switching terms will otherwise replace the in-progress hydration with whatever (if anything) is saved for the new term.
 
 **Related files:** `frontend/src/pages/SavedSchedules.tsx`, `frontend/src/components/saved/ScheduleListSidebar.tsx`, `frontend/src/pages/ScheduleBuilder.tsx`, `frontend/src/lib/api.ts` (`getScheduleById`, `updateSchedule` — defined, unused), `backend/models/Schedule.js`.
 
@@ -66,15 +58,15 @@ Applies to both the builder and the Saved Schedules preview, since both render `
 
 ## Course search: annotate courses with no sections in the active term
 
-**Problem:** `Course` documents are global/term-agnostic (no `termCode` field), while `Section` documents are term-scoped. `getCourses` (`backend/controllers/courseController.js`) doesn't filter or annotate by term at all, so results already include courses with zero sections in the selected term with no indication to the user. `CourseSearchPanel` now receives a required `termCode` prop and re-queries when it changes, so results at least reflect the active term's freshness — but there's still no signal distinguishing a course with zero sections this term from one that's actively offered. Separately, the `useEffect` keyed on `termCode` in `ScheduleBuilder.tsx` unconditionally wipes `selectedCourses`, `pinnedSections`, and `combinations` on every term switch, even for courses that still have sections in the new term.
+**Problem:** `Course` documents are global/term-agnostic (no `termCode` field), while `Section` documents are term-scoped. `getCourses` (`backend/controllers/courseController.js`) doesn't filter or annotate by term at all, so results already include courses with zero sections in the selected term with no indication to the user. `CourseSearchPanel` now receives a required `termCode` prop and re-queries when it changes, so results at least reflect the active term's freshness — but there's still no signal distinguishing a course with zero sections this term from one that's actively offered. Separately, the `useEffect` keyed on `termCode` in `ScheduleBuilder.tsx` now loads that term's own saved state (`frontend/src/lib/builderStorage.ts`) on every term switch rather than carrying anything over — a course still gets dropped from the new term's selection (or never appears) even if it has sections there, unless the student happened to select it under that term before.
 
 **Proposed approach for search:**
 - Extend `getCourses` to accept an optional `termCode` and cheaply tag each result with a `hasSectionsThisTerm` boolean (e.g. `Section.distinct('courseId', { termCode })` or an aggregation exists check), rather than filtering results out server-side.
 - Show courses with `hasSectionsThisTerm: false` visually muted with a "Not offered this term" badge, and disable or warn on adding them, rather than hiding them — hiding risks confusing a student who knows the course exists but can't find it.
 
 **Proposed approach for term-change state:**
-- Replace the unconditional wipe with logic that keeps selected courses which still have sections in the new term and drops the rest, surfacing which were removed and why.
-- `pinnedSections` must still clear unconditionally, since a `Section._id` is term-specific and can't carry over even when the parent course does.
+- On top of the existing per-term saved-state load, also carry forward selected courses from the term being left which still have sections in the new term (rather than relying solely on what was previously saved under that term), surfacing which were carried and which were dropped and why.
+- `pinnedSections` must still clear for any carried-over course, since a `Section._id` is term-specific and can't carry over even when the parent course does.
 - `combinations` still need a full reset either way, being generated per-term.
 
 **Related files:** `backend/controllers/courseController.js` (`getCourses`), `backend/models/Course.js`, `backend/models/Section.js`, `frontend/src/components/search/CourseSearchPanel.tsx`, `frontend/src/pages/ScheduleBuilder.tsx` (term-change effect).
@@ -94,7 +86,7 @@ Worth noting on priority: a student builds a schedule roughly once a quarter and
 
 ## Smaller QOL items
 
-- **Undo/confirm when removing a course from the builder.** `handleRemoveCourse` (`ScheduleBuilder.tsx`, ~line 143) removes instantly with no confirmation — inconsistent with `SavedSchedules.tsx`, which uses `confirm()` before deleting. Less urgent once builder state persists (above), since the cost of a misclick drops.
+- **Undo/confirm when removing a course from the builder.** `handleRemoveCourse` (`ScheduleBuilder.tsx`, ~line 143) removes instantly with no confirmation — inconsistent with `SavedSchedules.tsx`, which uses `confirm()` before deleting. Builder state now persists across reloads (`frontend/src/lib/builderStorage.ts`), so a misclick is recoverable as long as the user doesn't reload before re-adding the course — but removal within a session is still instant and unconfirmed, with no undo.
 - **Running credit-hour total.** Neither `CourseSearchPanel.tsx` nor the builder shows total credits across selected courses; helps students catch an overload before generating.
 - **"Open sections only" filter** in search, to cut noise on popular courses with many closed sections.
 - **"Save as" / duplicate on Saved Schedules.** Currently only select and delete are supported, so there's no way to branch a saved schedule into a variant without overwriting. Cheap once the load/edit flow above exists — it reuses `createSchedule` with the loaded sections.
