@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTerm } from "@/context/TermContext";
 import { api, type SavedSchedule } from "@/lib/api";
@@ -67,6 +68,12 @@ export default function SavedSchedules() {
               <p className="text-sm text-gray-500">Term: {selectedSchedule.termCode}</p>
             </div>
             <div className="flex items-center gap-2">
+              <a href={api.getIcsExportUrl(selectedSchedule._id)} download>
+                <Button variant="outline" className="gap-1.5">
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </a>
               <Link to={`/?scheduleId=${selectedSchedule._id}`}>
                 <Button variant="outline">Edit in Builder</Button>
               </Link>
