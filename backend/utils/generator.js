@@ -60,7 +60,7 @@ export const generateCombinations = async (courseIds, termCode, lockedSectionIds
   // 1. Load locked sections
   let lockedSections = [];
   if (lockedSectionIds.length > 0) {
-    lockedSections = await Section.find({ _id: { $in: lockedSectionIds } }).populate('courseId');
+    lockedSections = await Section.find({ _id: { $in: lockedSectionIds } }).populate('courseId').lean();
   }
 
   // Get list of courses from locked sections to include in execution scope
@@ -77,7 +77,7 @@ export const generateCombinations = async (courseIds, termCode, lockedSectionIds
   const sectionsInScope = await Section.find({
     courseId: { $in: allCourseIds },
     termCode
-  }).populate('courseId');
+  }).populate('courseId').lean();
 
   // 2. Group sections into pools by Course and Schedule Type (e.g. CS10 Lecture, CS10 Lab)
   const poolsMap = {};
@@ -231,7 +231,7 @@ const formatSchedule = (sectionsList) => {
     });
 
     groupsMap[cId].sections.push({
-      ...sec.toObject(),
+      ...sec,
       blocks
     });
   });

@@ -34,7 +34,8 @@ export const getCourses = async (req, res) => {
 
     const courses = await Course.find(filter)
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     res.json({
       courses,

@@ -19,7 +19,7 @@ export const getSectionsByCourse = async (req, res) => {
   }
 
   try {
-    const sections = await Section.find(query).populate('courseId');
+    const sections = await Section.find(query).populate('courseId').lean();
     res.json(sections);
   } catch (error) {
     console.error('Error fetching sections by course:', error);

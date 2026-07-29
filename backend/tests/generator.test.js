@@ -15,7 +15,9 @@ const runTest = async (name, fn) => {
 
 const resetMocks = () => {
   Section.find = () => ({
-    populate: () => Promise.resolve([])
+    populate: () => ({
+      lean: () => Promise.resolve([])
+    })
   });
 };
 
@@ -35,8 +37,7 @@ const mockLec1 = {
   creditHours: 4,
   scheduleType: { code: 'LEC' },
   meetingTimes: [{ weekDays: ['M', 'W'], startTime: '10:00', endTime: '11:20' }],
-  linkIdentifier: 'L1',
-  toObject() { return this; }
+  linkIdentifier: 'L1'
 };
 
 const mockLabA = {
@@ -48,8 +49,7 @@ const mockLabA = {
   creditHours: 0,
   scheduleType: { code: 'LAB' },
   meetingTimes: [{ weekDays: ['T'], startTime: '09:00', endTime: '11:50' }],
-  linkIdentifier: 'B1',
-  toObject() { return this; }
+  linkIdentifier: 'B1'
 };
 
 const mockLabB = {
@@ -61,8 +61,7 @@ const mockLabB = {
   creditHours: 0,
   scheduleType: { code: 'LAB' },
   meetingTimes: [{ weekDays: ['T'], startTime: '14:00', endTime: '16:50' }],
-  linkIdentifier: 'B2',
-  toObject() { return this; }
+  linkIdentifier: 'B2'
 };
 
 const mockMath1 = {
@@ -74,8 +73,7 @@ const mockMath1 = {
   creditHours: 4,
   scheduleType: { code: 'LEC' },
   meetingTimes: [{ weekDays: ['M', 'W'], startTime: '10:30', endTime: '11:50' }], // Conflicts with CS Lec
-  linkIdentifier: null,
-  toObject() { return this; }
+  linkIdentifier: null
 };
 
 const mockMath2 = {
@@ -87,8 +85,7 @@ const mockMath2 = {
   creditHours: 4,
   scheduleType: { code: 'LEC' },
   meetingTimes: [{ weekDays: ['M', 'W'], startTime: '13:00', endTime: '14:20' }], // Free
-  linkIdentifier: null,
-  toObject() { return this; }
+  linkIdentifier: null
 };
 
 // Reproduces the real PHYS 002B shape: two independent lecture sections, each with
@@ -105,8 +102,7 @@ const mockPhysLec1 = {
   creditHours: 4,
   scheduleType: { code: 'LEC' },
   meetingTimes: [{ weekDays: ['M'], startTime: '09:00', endTime: '09:50' }],
-  linkIdentifier: 'L1',
-  toObject() { return this; }
+  linkIdentifier: 'L1'
 };
 
 const mockPhysLec2 = {
@@ -118,8 +114,7 @@ const mockPhysLec2 = {
   creditHours: 4,
   scheduleType: { code: 'LEC' },
   meetingTimes: [{ weekDays: ['M'], startTime: '10:00', endTime: '10:50' }],
-  linkIdentifier: 'L2',
-  toObject() { return this; }
+  linkIdentifier: 'L2'
 };
 
 const mockPhysDis1 = {
@@ -131,8 +126,7 @@ const mockPhysDis1 = {
   creditHours: 0,
   scheduleType: { code: 'DIS' },
   meetingTimes: [{ weekDays: ['W'], startTime: '09:00', endTime: '09:50' }],
-  linkIdentifier: 'D1',
-  toObject() { return this; }
+  linkIdentifier: 'D1'
 };
 
 const mockPhysDis2 = {
@@ -144,8 +138,7 @@ const mockPhysDis2 = {
   creditHours: 0,
   scheduleType: { code: 'DIS' },
   meetingTimes: [{ weekDays: ['W'], startTime: '10:00', endTime: '10:50' }],
-  linkIdentifier: 'D2',
-  toObject() { return this; }
+  linkIdentifier: 'D2'
 };
 
 const main = async () => {
@@ -154,7 +147,9 @@ const main = async () => {
   await runTest('generateCombinations - should generate basic combinations resolving links', async () => {
     resetMocks();
     Section.find = (query) => ({
-      populate: () => Promise.resolve([mockLec1, mockLabA, mockLabB])
+      populate: () => ({
+        lean: () => Promise.resolve([mockLec1, mockLabA, mockLabB])
+      })
     });
 
     const results = await generateCombinations(['course1'], '202620');
@@ -172,7 +167,9 @@ const main = async () => {
   await runTest('generateCombinations - should detect time conflicts and skip overlapping sections', async () => {
     resetMocks();
     Section.find = () => ({
-      populate: () => Promise.resolve([mockLec1, mockLabA, mockMath1, mockMath2])
+      populate: () => ({
+        lean: () => Promise.resolve([mockLec1, mockLabA, mockMath1, mockMath2])
+      })
     });
 
     const results = await generateCombinations(['course1', 'course2'], '202620');
@@ -190,14 +187,16 @@ const main = async () => {
     
     // Mock database queries
     Section.find = (query) => ({
-      populate: () => {
-        if (query._id && query._id.$in) {
-          // Locked search query
-          return Promise.resolve([mockMath2]);
+      populate: () => ({
+        lean: () => {
+          if (query._id && query._id.$in) {
+            // Locked search query
+            return Promise.resolve([mockMath2]);
+          }
+          // General scope query
+          return Promise.resolve([mockLec1, mockLabA, mockLabB, mockMath1, mockMath2]);
         }
-        // General scope query
-        return Promise.resolve([mockLec1, mockLabA, mockLabB, mockMath1, mockMath2]);
-      }
+      })
     });
 
     const results = await generateCombinations(['course1'], '202620', ['math2']);
@@ -215,7 +214,9 @@ const main = async () => {
   await runTest('generateCombinations - matches linked sections by numeric suffix across component types', async () => {
     resetMocks();
     Section.find = () => ({
-      populate: () => Promise.resolve([mockPhysLec1, mockPhysLec2, mockPhysDis1, mockPhysDis2])
+      populate: () => ({
+        lean: () => Promise.resolve([mockPhysLec1, mockPhysLec2, mockPhysDis1, mockPhysDis2])
+      })
     });
 
     const results = await generateCombinations(['course3'], '202620');

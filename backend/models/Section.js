@@ -109,5 +109,6 @@ const SectionSchema = new mongoose.Schema({
 SectionSchema.index({ crn: 1, termCode: 1 }, { unique: true });
 SectionSchema.index({ subject: 1, courseNumber: 1 });
 SectionSchema.index({ requirementDesignation: 1 });
+SectionSchema.index({ courseId: 1, termCode: 1 });
 
 export const Section = mongoose.model('Section', SectionSchema);

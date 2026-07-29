@@ -36,7 +36,9 @@ const resetMocks = () => {
   Course.countDocuments = () => Promise.resolve(0);
   Course.find = () => ({
     skip: () => ({
-      limit: () => Promise.resolve([])
+      limit: () => ({
+        lean: () => Promise.resolve([])
+      })
     })
   });
   Course.findById = () => Promise.resolve(null);
@@ -60,9 +62,11 @@ const main = async () => {
     Course.countDocuments = () => Promise.resolve(45);
     Course.find = () => ({
       skip: () => ({
-        limit: () => Promise.resolve([
-          { _id: '1', subject: 'CS', courseNumber: '100', title: 'Software Construction' }
-        ])
+        limit: () => ({
+          lean: () => Promise.resolve([
+            { _id: '1', subject: 'CS', courseNumber: '100', title: 'Software Construction' }
+          ])
+        })
       })
     });
 
@@ -151,7 +155,9 @@ const main = async () => {
       return {
         populate: (path) => {
           assert.strictEqual(path, 'courseId');
-          return Promise.resolve([{ crn: '12345' }]);
+          return {
+            lean: () => Promise.resolve([{ crn: '12345' }])
+          };
         }
       };
     };
