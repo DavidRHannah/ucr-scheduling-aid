@@ -3,6 +3,8 @@ import type { Section } from "@/lib/api";
 import {
   timeToMinutes,
   getVisibleHourRange,
+  getAutoRowHeight,
+  SCALE_PRESETS,
   placeBlocks,
   assignBlockColumns,
   type PlacedBlock,
@@ -70,6 +72,24 @@ describe("getVisibleHourRange", () => {
       makeSection("b", [{ weekDays: ["W"], startTime: "16:00", endTime: "17:20" }]),
     ];
     expect(getVisibleHourRange(sections)).toEqual({ startHour: 8, endHour: 19 });
+  });
+});
+
+describe("getAutoRowHeight", () => {
+  it("returns comfortable row height for short schedules (8 hours or less)", () => {
+    expect(getAutoRowHeight(8, 16)).toBe(SCALE_PRESETS.comfortable); // 8 hrs -> 30px
+  });
+
+  it("returns medium row height for medium schedules (9 to 10 hours)", () => {
+    expect(getAutoRowHeight(8, 18)).toBe(SCALE_PRESETS.medium); // 10 hrs -> 24px
+  });
+
+  it("returns 20px row height for 11 to 12 hour schedules", () => {
+    expect(getAutoRowHeight(8, 20)).toBe(20); // 12 hrs -> 20px
+  });
+
+  it("returns compact row height for long schedules (13+ hours)", () => {
+    expect(getAutoRowHeight(7, 22)).toBe(SCALE_PRESETS.compact); // 15 hrs -> 18px
   });
 });
 

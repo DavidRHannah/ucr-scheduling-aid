@@ -162,3 +162,22 @@ export function savePreferences(preferences: RankingPreferences): void {
     // See saveBuilderState.
   }
 }
+
+const CALENDAR_SCALE_KEY = "builderCalendarScale";
+
+export function loadCalendarScale(): string | null {
+  try {
+    return localStorage.getItem(CALENDAR_SCALE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveCalendarScale(scale: string): void {
+  try {
+    localStorage.setItem(CALENDAR_SCALE_KEY, scale);
+  } catch {
+    // See saveBuilderState.
+  }
+}
+

@@ -18,14 +18,34 @@ export const getCourses = async (req, res) => {
     filter.subject = req.query.subject.toUpperCase();
   }
 
-  // Keyword search (matches subjectCode + courseNumber or title)
+  // Keyword search (matches combined subject + courseNumber, or title, subject, courseNumber)
   if (req.query.search) {
-    const searchRegex = new RegExp(req.query.search.trim(), 'i');
-    filter.$or = [
+    const rawSearch = req.query.search.trim();
+    const searchRegex = new RegExp(rawSearch, 'i');
+
+    const orConditions = [
       { title: searchRegex },
       { subject: searchRegex },
-      { courseNumber: searchRegex }
+      { courseNumber: searchRegex },
     ];
+
+    // Check if query is structured like [subject][courseNumber] or [subject] [courseNumber]
+    // e.g. "CS 100", "CS100", "MATH 009B", "math9b", "EE 020"
+    const comboMatch = rawSearch.match(/^([a-zA-Z]{2,5})\s*([0-9]{1,4}[a-zA-Z]*)$/);
+    if (comboMatch) {
+      const subjectPart = comboMatch[1];
+      const numPart = comboMatch[2];
+      // Normalize leading zeros so "10A" matches "010A" and vice versa
+      const strippedNum = numPart.replace(/^0+/, "");
+      const numRegex = new RegExp(`^0*${strippedNum}$`, "i");
+
+      orConditions.unshift({
+        subject: new RegExp(`^${subjectPart}$`, "i"),
+        courseNumber: numRegex,
+      });
+    }
+
+    filter.$or = orConditions;
   }
 
   try {

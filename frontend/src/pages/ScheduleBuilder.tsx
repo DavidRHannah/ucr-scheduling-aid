@@ -4,7 +4,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useTerm } from "@/context/TermContext";
 import { api, type CourseInfo, type GeneratedSchedule, type Section } from "@/lib/api";
 import { DEFAULT_PREFERENCES, type RankingPreferences } from "@/lib/scheduleRanking";
-import { getTermLabel } from "@/lib/terms";
 import {
   loadBuilderState,
   saveBuilderState,
@@ -337,16 +336,9 @@ export default function ScheduleBuilder() {
     }
   };
 
-  const activeTermLabel = getTermLabel(termCode);
-
   return (
     <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_340px]">
       <main className="space-y-5 overflow-y-auto p-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Schedule Builder</h1>
-          <p className="text-sm text-gray-500">Ranked schedules for {activeTermLabel}.</p>
-        </div>
-
         <SaveStatusBanner success={saveSuccess} error={saveError} />
 
         {selectedCourses.length === 0 && (

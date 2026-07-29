@@ -83,6 +83,38 @@ const main = async () => {
     assert.strictEqual(res.body.pagination.totalPages, 5);
   });
 
+  await runTest('getCourses - should handle combined [subject] [courseNumber] queries like CS 100 and CS100', async () => {
+    resetMocks();
+    let capturedFilter = null;
+    Course.countDocuments = (filter) => {
+      capturedFilter = filter;
+      return Promise.resolve(1);
+    };
+    Course.find = () => ({
+      skip: () => ({
+        limit: () => ({
+          lean: () => Promise.resolve([
+            { _id: '1', subject: 'CS', courseNumber: '100', title: 'Software Construction' }
+          ])
+        })
+      })
+    });
+
+    // Query with "CS 100"
+    const req1 = { query: { search: 'CS 100' } };
+    const res1 = new MockResponse();
+    await getCourses(req1, res1);
+    assert.strictEqual(res1.statusCode, 200);
+    assert.ok(capturedFilter.$or.some(cond => cond.subject && cond.courseNumber));
+
+    // Query with "cs100"
+    const req2 = { query: { search: 'cs100' } };
+    const res2 = new MockResponse();
+    await getCourses(req2, res2);
+    assert.strictEqual(res2.statusCode, 200);
+    assert.ok(capturedFilter.$or.some(cond => cond.subject && cond.courseNumber));
+  });
+
   await runTest('getCourseById - should reject invalid IDs', async () => {
     resetMocks();
     const req = { params: { id: 'invalid-id-format' } };

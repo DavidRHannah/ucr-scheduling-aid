@@ -26,6 +26,25 @@ export function timeToMinutes(time: string): number {
  * Bounds the grid to the sections actually present, with one hour of padding.
  * The old fixed 8:00-18:00 window silently hid evening classes.
  */
+export const SCALE_PRESETS = {
+  compact: 18,
+  medium: 24,
+  comfortable: 30,
+} as const;
+
+/**
+ * Calculates an optimal half-hour row height (in pixels) based on the total
+ * hour span of the schedule. This keeps the total grid height bounded (~480px-540px)
+ * so schedules spanning morning to night fit on standard laptop screens without vertical scrolling.
+ */
+export function getAutoRowHeight(startHour: number, endHour: number): number {
+  const totalHours = endHour - startHour;
+  if (totalHours <= 8) return SCALE_PRESETS.comfortable;
+  if (totalHours <= 10) return SCALE_PRESETS.medium;
+  if (totalHours <= 12) return 20;
+  return SCALE_PRESETS.compact;
+}
+
 export function getVisibleHourRange(sections: Section[]): {
   startHour: number;
   endHour: number;
