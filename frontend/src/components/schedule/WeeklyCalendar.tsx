@@ -59,14 +59,7 @@ export function WeeklyCalendar({ sections }: WeeklyCalendarProps) {
   return (
     <div className="rounded-md border border-gray-200 bg-white shadow-xs overflow-hidden">
       {/* Calendar Toolbar & Scale Controls */}
-      <div className="flex flex-wrap items-center justify-between border-b border-gray-200 bg-gray-50/80 px-3 py-2 text-xs gap-2">
-        <div className="flex items-center gap-2 text-gray-600 font-medium">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-200/70 px-2 py-1 text-[11px] font-semibold text-gray-700">
-            {formatHourLabel(startHour)} – {formatHourLabel(endHour)}
-          </span>
-          <span className="text-gray-400 font-normal">({totalHours} hrs)</span>
-        </div>
-
+      <div className="flex flex-wrap items-center justify-end border-b border-gray-200 bg-gray-50/80 px-3 py-2 text-xs gap-2">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <Sliders className="h-3.5 w-3.5 text-gray-400 hidden sm:inline" />
