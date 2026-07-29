@@ -30,7 +30,7 @@ const GENERATE_DEBOUNCE_MS = 400;
 
 export default function ScheduleBuilder() {
   const { user } = useAuth();
-  const { term: termCode } = useTerm();
+  const { term: termCode, setTerm } = useTerm();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [selectedCourses, setSelectedCourses] = useState<CourseInfo[]>(
@@ -53,6 +53,9 @@ export default function ScheduleBuilder() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState("");
   const [saveError, setSaveError] = useState("");
+
+  /** Set when the builder is editing a saved schedule loaded via ?scheduleId=. */
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
 
   /** Guards against a slow earlier response overwriting a newer one. */
   const requestIdRef = useRef(0);
@@ -163,7 +166,66 @@ export default function ScheduleBuilder() {
     setSaveSuccess("");
     setSaveError("");
     setDetailCourse(null);
+    setSaveName("");
+    setEditingScheduleId(null);
   }, [termCode]);
+
+  /**
+   * Loads a saved schedule for editing when navigated here with ?scheduleId=.
+   * Runs after the term-load effect above so a hydration here overrides
+   * whatever that effect just restored from local storage. If the schedule's
+   * term differs from the active term, it switches the term context and
+   * relies on this effect re-running (termCode is a dependency) once that
+   * change lands, rather than trying to hydrate and switch in one pass.
+   */
+  useEffect(() => {
+    const scheduleId = searchParams.get("scheduleId");
+    if (!scheduleId) return;
+
+    let cancelled = false;
+    const loadSchedule = async () => {
+      try {
+        const schedule = await api.getScheduleById(scheduleId);
+        if (cancelled) return;
+
+        if (schedule.termCode !== termCode) {
+          setTerm(schedule.termCode);
+          return;
+        }
+
+        const courseMap = new Map<string, CourseInfo>();
+        for (const section of schedule.sectionIds) {
+          if (!courseMap.has(section.courseId._id)) {
+            courseMap.set(section.courseId._id, section.courseId);
+          }
+        }
+
+        requestIdRef.current += 1;
+        setSelectedCourses(Array.from(courseMap.values()));
+        setPinnedSections(schedule.sectionIds);
+        setStateTerm(termCode);
+        setSaveName(schedule.name);
+        setEditingScheduleId(schedule._id);
+        setCombinations([]);
+        setNearMisses([]);
+        setSelectedIndex(0);
+        setHasGenerated(false);
+        setSaveSuccess("");
+        setSaveError("");
+        setDetailCourse(null);
+
+        searchParams.delete("scheduleId");
+        setSearchParams(searchParams, { replace: true });
+      } catch (err) {
+        console.error("Failed loading schedule for edit:", err);
+      }
+    };
+
+    loadSchedule();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, termCode, setSearchParams, setTerm]);
 
   useEffect(() => {
     if (stateTerm !== termCode) return;
@@ -204,24 +266,52 @@ export default function ScheduleBuilder() {
 
   const handleClearPins = () => setPinnedSections([]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveNew = async () => {
     if (!current) return;
+    const wasEditing = editingScheduleId !== null;
     setIsSaving(true);
     setSaveSuccess("");
     setSaveError("");
     try {
-      await api.createSchedule({
+      const created = await api.createSchedule({
         name: saveName.trim() || "My Target Schedule",
         termCode,
         sectionIds: currentSections.map((s) => s._id),
       });
+      setEditingScheduleId(created._id);
       setSaveSuccess("Schedule saved successfully!");
-      setSaveName("");
-    } catch (err: any) {
-      setSaveError(err.message || "Failed saving schedule configurations.");
+      if (!wasEditing) setSaveName("");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed saving schedule configurations.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!current || !editingScheduleId) return;
+    setIsSaving(true);
+    setSaveSuccess("");
+    setSaveError("");
+    try {
+      await api.updateSchedule(editingScheduleId, {
+        name: saveName.trim() || "My Target Schedule",
+        sectionIds: currentSections.map((s) => s._id),
+      });
+      setSaveSuccess("Schedule updated successfully!");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed updating schedule.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSubmitSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingScheduleId) {
+      handleUpdate();
+    } else {
+      handleSaveNew();
     }
   };
 
@@ -247,55 +337,75 @@ export default function ScheduleBuilder() {
           </div>
         )}
 
-        {isGenerating && (
+        {isGenerating && !hasGenerated && (
           <div className="space-y-3">
             <div className="h-6 w-56 animate-pulse rounded bg-gray-100" />
             <div className="h-[420px] animate-pulse rounded-lg bg-gray-100" />
           </div>
         )}
 
-        {!isGenerating && hasGenerated && combinations.length === 0 && (
-          <NoResultsPanel
-            nearMisses={nearMisses}
-            isLoading={false}
-            pinnedCount={pinnedSections.length}
-            onClearPins={handleClearPins}
-          />
-        )}
-
-        {!isGenerating && current && (
+        {hasGenerated && (
           <>
-            <RankedResultHeader
-              result={current}
-              position={selectedIndex + 1}
-              total={ranked.length}
-              onPrevious={() => setSelectedIndex((i) => Math.max(0, i - 1))}
-              onNext={() => setSelectedIndex((i) => Math.min(ranked.length - 1, i + 1))}
-            />
+            {isGenerating && (
+              <div
+                role="status"
+                aria-label="Updating schedule"
+                className="h-1 w-full overflow-hidden rounded bg-gray-100"
+              >
+                <div className="h-full w-1/3 animate-pulse rounded bg-blue-500" />
+              </div>
+            )}
 
-            <WeeklyCalendar sections={currentSections} />
-            <AsyncSectionTray sections={currentSections} />
+            {combinations.length === 0 && (
+              <NoResultsPanel
+                nearMisses={nearMisses}
+                isLoading={false}
+                pinnedCount={pinnedSections.length}
+                onClearPins={handleClearPins}
+              />
+            )}
 
-            <AlternativesStrip
-              results={ranked}
-              selectedIndex={selectedIndex}
-              onSelect={setSelectedIndex}
-            />
+            {current && (
+              <div
+                className={
+                  isGenerating ? "space-y-5 opacity-60 transition-opacity" : "space-y-5"
+                }
+              >
+                <RankedResultHeader
+                  result={current}
+                  position={selectedIndex + 1}
+                  total={ranked.length}
+                  onPrevious={() => setSelectedIndex((i) => Math.max(0, i - 1))}
+                  onNext={() => setSelectedIndex((i) => Math.min(ranked.length - 1, i + 1))}
+                />
 
-            <ScheduleSectionTable
-              sections={currentSections}
-              pinnedSections={pinnedSections}
-              onTogglePin={handleTogglePin}
-            />
+                <WeeklyCalendar sections={currentSections} />
+                <AsyncSectionTray sections={currentSections} />
 
-            <ScheduleActionBar
-              sections={currentSections}
-              isSignedIn={!!user}
-              saveName={saveName}
-              isSaving={isSaving}
-              onSaveNameChange={setSaveName}
-              onSave={handleSave}
-            />
+                <AlternativesStrip
+                  results={ranked}
+                  selectedIndex={selectedIndex}
+                  onSelect={setSelectedIndex}
+                />
+
+                <ScheduleSectionTable
+                  sections={currentSections}
+                  pinnedSections={pinnedSections}
+                  onTogglePin={handleTogglePin}
+                />
+
+                <ScheduleActionBar
+                  sections={currentSections}
+                  isSignedIn={!!user}
+                  saveName={saveName}
+                  isSaving={isSaving}
+                  isEditing={editingScheduleId !== null}
+                  onSaveNameChange={setSaveName}
+                  onSave={handleSubmitSave}
+                  onSaveAsNew={handleSaveNew}
+                />
+              </div>
+            )}
           </>
         )}
       </main>

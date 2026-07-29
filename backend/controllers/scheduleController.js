@@ -80,7 +80,7 @@ export const getSchedules = async (req, res) => {
   }
 
   try {
-    const schedules = await Schedule.find(filter).populate('sectionIds');
+    const schedules = await Schedule.find(filter).populate({ path: 'sectionIds', populate: { path: 'courseId' } });
     res.json(schedules);
   } catch (error) {
     console.error('Fetch Schedules Error:', error);
@@ -100,7 +100,7 @@ export const getScheduleById = async (req, res) => {
   }
 
   try {
-    const schedule = await Schedule.findById(id).populate('sectionIds');
+    const schedule = await Schedule.findById(id).populate({ path: 'sectionIds', populate: { path: 'courseId' } });
     if (!schedule) {
       return res.status(404).json({
         message: 'Schedule not found.'
@@ -151,7 +151,7 @@ export const updateSchedule = async (req, res) => {
 
     await schedule.save();
     
-    const updated = await Schedule.findById(id).populate('sectionIds');
+    const updated = await Schedule.findById(id).populate({ path: 'sectionIds', populate: { path: 'courseId' } });
     res.json(updated);
   } catch (error) {
     console.error('Update Schedule Error:', error);
@@ -206,7 +206,7 @@ export const analyzeSchedule = async (req, res) => {
   }
 
   try {
-    const schedule = await Schedule.findById(id).populate('sectionIds');
+    const schedule = await Schedule.findById(id).populate({ path: 'sectionIds', populate: { path: 'courseId' } });
     if (!schedule) {
       return res.status(404).json({
         message: 'Schedule not found.'
@@ -309,7 +309,7 @@ export const exportIcs = async (req, res) => {
   }
 
   try {
-    const schedule = await Schedule.findById(scheduleId).populate('sectionIds');
+    const schedule = await Schedule.findById(scheduleId).populate({ path: 'sectionIds', populate: { path: 'courseId' } });
     if (!schedule) {
       return res.status(404).json({
         message: 'Schedule not found.'

@@ -10,8 +10,10 @@ interface ScheduleActionBarProps {
   isSignedIn: boolean;
   saveName: string;
   isSaving: boolean;
+  isEditing: boolean;
   onSaveNameChange: (value: string) => void;
   onSave: (e: React.FormEvent) => void;
+  onSaveAsNew: () => void;
 }
 
 export function ScheduleActionBar({
@@ -19,8 +21,10 @@ export function ScheduleActionBar({
   isSignedIn,
   saveName,
   isSaving,
+  isEditing,
   onSaveNameChange,
   onSave,
+  onSaveAsNew,
 }: ScheduleActionBarProps) {
   const [copied, setCopied] = useState(false);
 
@@ -55,8 +59,19 @@ export function ScheduleActionBar({
             onChange={(e) => onSaveNameChange(e.target.value)}
           />
           <Button type="submit" disabled={isSaving} className="cursor-pointer">
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? "Saving..." : isEditing ? "Update" : "Save"}
           </Button>
+          {isEditing && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              className="cursor-pointer"
+              onClick={onSaveAsNew}
+            >
+              Save as New
+            </Button>
+          )}
         </form>
       ) : (
         <div className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5">

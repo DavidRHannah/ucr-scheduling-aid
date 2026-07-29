@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTerm } from "@/context/TermContext";
 import { api, type SavedSchedule } from "@/lib/api";
@@ -65,9 +66,14 @@ export default function SavedSchedules() {
               <h1 className="text-2xl font-bold text-gray-900">{selectedSchedule.name}</h1>
               <p className="text-sm text-gray-500">Term: {selectedSchedule.termCode}</p>
             </div>
-            <Button variant="destructive" onClick={() => handleDelete(selectedSchedule._id)}>
-              Delete Plan
-            </Button>
+            <div className="flex items-center gap-2">
+              <Link to={`/?scheduleId=${selectedSchedule._id}`}>
+                <Button variant="outline">Edit in Builder</Button>
+              </Link>
+              <Button variant="destructive" onClick={() => handleDelete(selectedSchedule._id)}>
+                Delete Plan
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-white p-4">
