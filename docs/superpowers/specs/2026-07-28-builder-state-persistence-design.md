@@ -106,11 +106,13 @@ This produces a deliberate behavior change beyond pure persistence: switching Fa
 
 That does self-correct on the following commit, but depending on "the wrong value is overwritten a few milliseconds later" is the same fragility the lazy initializers were chosen to avoid on mount, and it breaks outright if anything reads storage inside that window.
 
-The guard is a ref holding the term that the in-memory state belongs to:
+The guard is a piece of **state** — `stateTerm` — holding the term that the in-memory courses and pins belong to:
 
-- Initialized to the mount-time `termCode`, alongside the lazy initializers.
-- The load effect sets it to the new term at the same time it loads that term's state.
-- The write effect writes only when `stateTermRef.current === termCode`, and skips otherwise.
+- Initialized to the mount-time `termCode`.
+- The load effect calls `setStateTerm(termCode)` in the same batch as `setSelectedCourses` and `setPinnedSections`.
+- The write effect writes only when `stateTerm === termCode`, and skips otherwise.
+
+It must be state rather than a ref. A ref mutates synchronously, so the load effect would update it before the write effect runs in that same commit; the write effect would then see the ref and `termCode` agreeing and would write the old term's courses under the new term's key — the guard passing at precisely the moment it needs to fail. State updates commit atomically with the courses they describe, so during the intermediate render the write effect correctly sees `stateTerm` still holding the previous term while `termCode` holds the new one, and skips.
 
 The invariant this enforces, stated plainly: never persist builder state under a term it did not come from.
 
